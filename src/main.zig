@@ -15,19 +15,6 @@ pub const System = interface.System;
 pub const Dir = types.Dir;
 pub const File = types.File;
 
-test {
-    var back = HostBackend{};
-    const sys = back.system();
-
-    const cwd = sys.cwd();
-
-    const file = try cwd.openFile("LICENSE", .{});
-    defer file.close();
-
-    const euid = sys.geteuid();
-    std.debug.print("\n{}\n", .{euid});
-}
-
 comptime {
     std.testing.refAllDecls(@This());
 }
