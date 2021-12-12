@@ -48,9 +48,18 @@ pub fn Backend(comptime backend_config: ?Config) type {
             };
         }
 
-        fn closeFile(self: *Self, file: File) void {
-            _ = self;
+        fn readFile(self: *Self, file: File, buffer: []u8) std.os.ReadError!usize {
             if (backend_config) |config| {
+                _ = self;
+                _ = config;
+                @panic("unimplemented");
+            }
+            return file._value.host.read(buffer);
+        }
+
+        fn closeFile(self: *Self, file: File) void {
+            if (backend_config) |config| {
+                _ = self;
                 _ = config;
                 @panic("unimplemented");
             }
@@ -74,6 +83,14 @@ pub fn Backend(comptime backend_config: ?Config) type {
                     });
                 }
 
+                fn readFileEntry(ptr: *c_void, file: File, buffer: []u8) std.os.ReadError!usize {
+                    return @call(.{ .modifier = .always_inline }, readFile, .{
+                        @ptrCast(*Self, @alignCast(alignment, ptr)),
+                        file,
+                        buffer,
+                    });
+                }
+
                 fn closeEntry(ptr: *c_void, file: File) void {
                     return @call(.{ .modifier = .always_inline }, closeFile, .{
                         @ptrCast(*Self, @alignCast(alignment, ptr)),
@@ -85,6 +102,7 @@ pub fn Backend(comptime backend_config: ?Config) type {
             break :blk .{
                 .cwdFn = gen.cwdEntry,
                 .openFileFromDirFn = gen.openFileFromDirEntry,
+                .readFileFn = gen.readFileEntry,
                 .closeFileFn = gen.closeEntry,
             };
         };

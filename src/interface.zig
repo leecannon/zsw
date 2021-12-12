@@ -12,6 +12,7 @@ pub const VTable = struct {
     openFileFromDirFn: fn (ptr: *c_void, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File,
 
     // Exposed by `File`
+    readFileFn: fn (ptr: *c_void, file: File, buffer: []u8) std.os.ReadError!usize,
     closeFileFn: fn (ptr: *c_void, file: File) void,
 
     comptime {
