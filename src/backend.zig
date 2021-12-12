@@ -12,13 +12,24 @@ pub const Config = struct {
     }
 };
 
-/// If `null` is provided then the host system is used directly
-pub fn Backend(comptime backend_config: ?Config) type {
+pub fn CustomBackend(comptime backend_config: Config) type {
+    _ = backend_config;
+
     return struct {
-        _: usize = 0,
+        allocator: std.mem.Allocator,
 
         const Self = @This();
         const alignment = @alignOf(Self);
+
+        pub fn init(allocator: std.mem.Allocator) Self {
+            return .{
+                .allocator = allocator,
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            _ = self;
+        }
 
         pub inline fn system(self: *Self) System {
             return .{
@@ -28,52 +39,34 @@ pub fn Backend(comptime backend_config: ?Config) type {
         }
 
         fn cwd(self: *Self) Dir {
-            if (backend_config) |config| {
-                _ = config;
-                @panic("unimplemented");
-            }
-            return .{
-                ._system = self.system(),
-                ._value = .{ .host = std.fs.cwd() },
-            };
+            _ = self;
+            @panic("unimplemented");
         }
 
         fn openFileFromDir(self: *Self, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
-            if (backend_config) |config| {
-                _ = config;
-                @panic("unimplemented");
-            }
-            return File{
-                ._system = self.system(),
-                ._value = .{ .host = try dir._value.host.openFile(sub_path, flags) },
-            };
+            _ = self;
+            _ = dir;
+            _ = sub_path;
+            _ = flags;
+            @panic("unimplemented");
         }
 
         fn readFile(self: *Self, file: File, buffer: []u8) std.os.ReadError!usize {
-            if (backend_config) |config| {
-                _ = self;
-                _ = config;
-                @panic("unimplemented");
-            }
-            return file._value.host.read(buffer);
+            _ = self;
+            _ = file;
+            _ = buffer;
+            @panic("unimplemented");
         }
 
         fn closeFile(self: *Self, file: File) void {
-            if (backend_config) |config| {
-                _ = self;
-                _ = config;
-                @panic("unimplemented");
-            }
-            file._value.host.close();
+            _ = self;
+            _ = file;
+            @panic("unimplemented");
         }
 
         fn osLinuxGeteuid(self: *Self) std.os.linux.uid_t {
-            if (backend_config) |config| {
-                _ = self;
-                _ = config;
-                @panic("unimplemented");
-            }
-            return std.os.linux.geteuid();
+            _ = self;
+            @panic("unimplemented");
         }
 
         const vtable: interface.VTable = blk: {
@@ -129,6 +122,45 @@ pub fn Backend(comptime backend_config: ?Config) type {
         }
     };
 }
+
+pub const HostBackend = struct {
+    pub const system: interface.System = .{
+        ._ptr = undefined,
+        ._vtable = &interface.VTable{
+            .cwdFn = cwd,
+            .openFileFromDirFn = openFileFromDir,
+            .readFileFn = readFile,
+            .closeFileFn = closeFile,
+            .osLinuxGeteuidFn = osLinuxGeteuid,
+        },
+    };
+
+    fn cwd(_: *c_void) Dir {
+        return .{
+            ._system = system,
+            ._value = .{ .host = std.fs.cwd() },
+        };
+    }
+
+    fn openFileFromDir(_: *c_void, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
+        return File{
+            ._system = system,
+            ._value = .{ .host = try dir._value.host.openFile(sub_path, flags) },
+        };
+    }
+
+    fn readFile(_: *c_void, file: File, buffer: []u8) std.os.ReadError!usize {
+        return file._value.host.read(buffer);
+    }
+
+    fn closeFile(_: *c_void, file: File) void {
+        file._value.host.close();
+    }
+
+    fn osLinuxGeteuid(_: *c_void) std.os.linux.uid_t {
+        return std.os.linux.geteuid();
+    }
+};
 
 comptime {
     std.testing.refAllDecls(@This());

@@ -5,10 +5,10 @@ const interface = @import("interface.zig");
 const types = @import("types.zig");
 
 pub const Config = backend.Config;
-pub const Backend = backend.Backend;
+pub const CustomBackend = backend.CustomBackend;
 
 /// This backend uses the host system directly 
-pub const HostBackend = Backend(null);
+pub const host_system = backend.HostBackend.system;
 
 pub const System = interface.System;
 
