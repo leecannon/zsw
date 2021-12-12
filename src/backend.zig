@@ -1,5 +1,6 @@
 const std = @import("std");
 const interface = @import("interface.zig");
+const System = interface.System;
 
 const types = @import("types.zig");
 const Dir = types.Dir;
@@ -19,7 +20,7 @@ pub fn Backend(comptime backend_config: ?Config) type {
         const Self = @This();
         const alignment = @alignOf(Self);
 
-        pub inline fn system(self: *Self) interface.System {
+        pub inline fn system(self: *Self) System {
             return .{
                 ._ptr = self,
                 ._vtable = &vtable,
@@ -66,6 +67,15 @@ pub fn Backend(comptime backend_config: ?Config) type {
             file._value.host.close();
         }
 
+        fn osLinuxGeteuid(self: *Self) std.os.linux.uid_t {
+            if (backend_config) |config| {
+                _ = self;
+                _ = config;
+                @panic("unimplemented");
+            }
+            return std.os.linux.geteuid();
+        }
+
         const vtable: interface.VTable = blk: {
             const gen = struct {
                 fn cwdEntry(ptr: *c_void) Dir {
@@ -97,6 +107,12 @@ pub fn Backend(comptime backend_config: ?Config) type {
                         file,
                     });
                 }
+
+                fn osLinuxGeteuidEntry(ptr: *c_void) std.os.linux.uid_t {
+                    return @call(.{ .modifier = .always_inline }, osLinuxGeteuid, .{
+                        @ptrCast(*Self, @alignCast(alignment, ptr)),
+                    });
+                }
             };
 
             break :blk .{
@@ -104,6 +120,7 @@ pub fn Backend(comptime backend_config: ?Config) type {
                 .openFileFromDirFn = gen.openFileFromDirEntry,
                 .readFileFn = gen.readFileEntry,
                 .closeFileFn = gen.closeEntry,
+                .osLinuxGeteuidFn = gen.osLinuxGeteuidEntry,
             };
         };
 

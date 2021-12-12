@@ -23,6 +23,9 @@ test {
 
     const file = try cwd.openFile("LICENSE", .{});
     defer file.close();
+
+    const euid = sys.geteuid();
+    std.debug.print("\n{}\n", .{euid});
 }
 
 comptime {
