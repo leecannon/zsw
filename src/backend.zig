@@ -11,7 +11,7 @@ pub const Config = struct {
     }
 };
 
-/// If `null` is provided then the system is used directly
+/// If `null` is provided then the host system is used directly
 pub fn Backend(comptime backend_config: ?Config) type {
     return struct {
         _: usize = 0,
@@ -19,7 +19,7 @@ pub fn Backend(comptime backend_config: ?Config) type {
         const Self = @This();
         const alignment = @alignOf(Self);
 
-        pub inline fn sys(self: *Self) interface.Sys {
+        pub inline fn system(self: *Self) interface.System {
             return .{
                 ._ptr = self,
                 ._vtable = &vtable,
@@ -32,8 +32,8 @@ pub fn Backend(comptime backend_config: ?Config) type {
                 @panic("unimplemented");
             }
             return .{
-                ._sys = self.sys(),
-                ._value = .{ .system = std.fs.cwd() },
+                ._system = self.system(),
+                ._value = .{ .host = std.fs.cwd() },
             };
         }
 
@@ -43,8 +43,8 @@ pub fn Backend(comptime backend_config: ?Config) type {
                 @panic("unimplemented");
             }
             return File{
-                ._sys = self.sys(),
-                ._value = .{ .system = try dir._value.system.openFile(sub_path, flags) },
+                ._system = self.system(),
+                ._value = .{ .host = try dir._value.host.openFile(sub_path, flags) },
             };
         }
 
@@ -54,7 +54,7 @@ pub fn Backend(comptime backend_config: ?Config) type {
                 _ = config;
                 @panic("unimplemented");
             }
-            file._value.system.close();
+            file._value.host.close();
         }
 
         const vtable: interface.VTable = blk: {

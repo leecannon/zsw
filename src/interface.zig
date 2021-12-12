@@ -5,7 +5,7 @@ const Dir = types.Dir;
 const File = types.File;
 
 pub const VTable = struct {
-    // Exposed by `Sys`
+    // Exposed by `System`
     cwdFn: fn (ptr: *c_void) Dir,
 
     // Exposed by `Dir`
@@ -19,11 +19,11 @@ pub const VTable = struct {
     }
 };
 
-pub const Sys = struct {
+pub const System = struct {
     _ptr: *c_void,
     _vtable: *const VTable,
 
-    pub inline fn cwd(self: Sys) Dir {
+    pub inline fn cwd(self: System) Dir {
         return self._vtable.cwdFn(self._ptr);
     }
 

@@ -1,19 +1,23 @@
 const std = @import("std");
 
-const impl = @import("impl.zig");
+const backend = @import("backend.zig");
 const interface = @import("interface.zig");
 const types = @import("types.zig");
 
-pub const Config = impl.Config;
-pub const Backend = impl.Backend;
-pub const Sys = interface.Sys;
+pub const Config = backend.Config;
+pub const Backend = backend.Backend;
+
+/// This backend uses the host system directly 
+pub const HostBackend = Backend(null);
+
+pub const System = interface.System;
 
 pub const Dir = types.Dir;
 pub const File = types.File;
 
 test {
-    var backend = Backend(null){};
-    const sys = backend.sys();
+    var back = HostBackend{};
+    const sys = back.system();
 
     const cwd = sys.cwd();
 

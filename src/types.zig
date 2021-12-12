@@ -2,25 +2,25 @@ const std = @import("std");
 const interface = @import("interface.zig");
 
 pub const Dir = struct {
-    _sys: interface.Sys,
+    _system: interface.System,
     _value: Value,
 
     const Value = extern union {
-        system: std.fs.Dir,
+        host: std.fs.Dir,
         custom: void,
     };
 
     pub inline fn openFile(self: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
-        return self._sys._vtable.openFileFromDirFn(self._sys._ptr, self, sub_path, flags);
+        return self._system._vtable.openFileFromDirFn(self._system._ptr, self, sub_path, flags);
     }
 };
 
 pub const File = struct {
-    _sys: interface.Sys,
+    _system: interface.System,
     _value: Value,
 
     const Value = extern union {
-        system: std.fs.File,
+        host: std.fs.File,
         custom: void,
     };
 
@@ -28,7 +28,7 @@ pub const File = struct {
     pub const OpenError = std.fs.File.OpenError;
 
     pub inline fn close(self: File) void {
-        return self._sys._vtable.closeFileFn(self._sys._ptr, self);
+        return self._system._vtable.closeFileFn(self._system._ptr, self);
     }
 };
 
