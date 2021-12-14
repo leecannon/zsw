@@ -351,5 +351,9 @@ pub const Entry = struct {
 };
 
 comptime {
+    @import("../Config.zig").referenceAllIterations(FileSystem);
+}
+
+comptime {
     std.testing.refAllDecls(@This());
 }

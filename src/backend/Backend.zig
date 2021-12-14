@@ -165,5 +165,9 @@ pub fn Backend(comptime config: Config) type {
 }
 
 comptime {
+    @import("../Config.zig").referenceAllIterations(Backend);
+}
+
+comptime {
     std.testing.refAllDecls(@This());
 }

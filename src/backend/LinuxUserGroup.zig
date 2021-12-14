@@ -24,5 +24,9 @@ pub fn LinuxUserGroup(comptime config: Config) type {
 }
 
 comptime {
+    @import("../Config.zig").referenceAllIterations(LinuxUserGroup);
+}
+
+comptime {
     std.testing.refAllDecls(@This());
 }
