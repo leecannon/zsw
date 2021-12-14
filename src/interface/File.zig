@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const System = @import("System.zig").System;
-const Entry = @import("../backend/FileSystem.zig").Entry;
 
 pub const File = struct {
     system: System,
@@ -12,7 +11,7 @@ pub const File = struct {
         custom: Custom,
 
         pub const Custom = struct {
-            entry: *Entry,
+            entry: *c_void,
             view_index: u32,
         };
     };

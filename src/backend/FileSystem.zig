@@ -237,11 +237,13 @@ pub fn FileSystem(comptime config: Config) type {
         pub fn readFile(self: *Self, file: File.Data.Custom, buffer: []u8) std.os.ReadError!usize {
             _ = self;
 
+            const entry = toEntry(file.entry);
+
             if (config.log) {
-                log.info("readFile called, file: {*}, buffer len: {}", .{ file.entry, buffer.len });
+                log.info("readFile called, file: {*}, buffer len: {}", .{ entry, buffer.len });
             }
 
-            switch (file.entry.subdata) {
+            switch (entry.subdata) {
                 .dir => {
                     if (config.log) {
                         log.err("entry is a dir", .{});
@@ -249,7 +251,7 @@ pub fn FileSystem(comptime config: Config) type {
                     return std.os.ReadError.IsDir;
                 },
                 .file => |f| {
-                    const view = file.entry.views.getPtr(file.view_index) orelse return error.NotOpenForReading;
+                    const view = entry.views.getPtr(file.view_index) orelse return error.NotOpenForReading;
 
                     const size = std.math.min(buffer.len, f.contents.len - view.position);
                     const end = view.position + size;
@@ -266,16 +268,22 @@ pub fn FileSystem(comptime config: Config) type {
         pub fn closeFile(self: *Self, file: File.Data.Custom) void {
             _ = self;
 
-            if (config.log) {
-                log.info("closeFile called, file: {*}", .{file.entry});
-            }
-
-            file.entry.ref_count -= 1;
-            file.entry.removeView(file.view_index);
+            const entry = toEntry(file.entry);
 
             if (config.log) {
-                log.debug("closed view, entry: {x}, name: {s}, index: {}", .{ file.entry, file.entry.name, file.view_index });
+                log.info("closeFile called, file: {*}", .{entry});
             }
+
+            entry.ref_count -= 1;
+            entry.removeView(file.view_index);
+
+            if (config.log) {
+                log.debug("closed view, entry: {x}, name: {s}, index: {}", .{ entry, entry.name, file.view_index });
+            }
+        }
+
+        inline fn toEntry(ptr: *c_void) *Entry {
+            return @ptrCast(*Entry, @alignCast(@alignOf(Entry), ptr));
         }
     };
 }
