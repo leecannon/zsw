@@ -16,7 +16,7 @@ const host_backend = @import("host_backend.zig");
 pub fn Backend(comptime config: Config) type {
     return struct {
         allocator: std.mem.Allocator,
-        file_system: FileSystem(config),
+        file_system: *FileSystem(config),
         linux_user_group: LinuxUserGroup(config),
 
         const log = std.log.scoped(config.logging_scope);
@@ -29,7 +29,7 @@ pub fn Backend(comptime config: Config) type {
 
             const DescriptionType = @TypeOf(description);
 
-            const file_system: FileSystem(config) = if (config.file_system) blk: {
+            const file_system: *FileSystem(config) = if (config.file_system) blk: {
                 comptime {
                     const err = "file system capability requested without `file_system` field in `description` with type `FileSystemDescription`";
                     if (!@hasField(DescriptionType, "file_system")) {
@@ -43,7 +43,7 @@ pub fn Backend(comptime config: Config) type {
                 }
 
                 break :blk try FileSystem(config).init(allocator, description.file_system);
-            } else .{};
+            } else undefined;
 
             const linux_user_group: LinuxUserGroup(config) = if (config.linux_user_group) blk: {
                 comptime {

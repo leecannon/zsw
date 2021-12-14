@@ -8,12 +8,7 @@ pub const File = struct {
 
     pub const Data = extern union {
         host: std.fs.File,
-        custom: Custom,
-
-        pub const Custom = struct {
-            entry: *c_void,
-            view_index: u32,
-        };
+        custom: *c_void,
     };
 
     pub const OpenFlags = std.fs.File.OpenFlags;
