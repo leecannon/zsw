@@ -203,7 +203,7 @@ pub fn FileSystem(comptime config: Config) type {
 
                 if (std.mem.eql(u8, section, ".")) {
                     if (config.log) {
-                        log.debug("skipping current directory", .{});
+                        log.debug("skipping current directory section", .{});
                     }
                     continue;
                 }
@@ -219,21 +219,15 @@ pub fn FileSystem(comptime config: Config) type {
                     const child = e.key_ptr.*;
                     if (std.mem.eql(u8, child.name, section)) {
                         if (config.log) {
-                            log.debug("matching child found, entry: {*}, name: \"{s}\"", .{ child, child.name });
+                            log.debug("found entry: {*}, name: \"{s}\", type: {s}", .{ child, child.name, @tagName(child.subdata) });
                         }
                         switch (child.subdata) {
                             .dir => {
-                                if (config.log) {
-                                    log.debug("child is directory", .{});
-                                }
                                 entry = child;
                                 parent = child;
                                 continue :path_loop;
                             },
                             .file => {
-                                if (config.log) {
-                                    log.debug("child is file", .{});
-                                }
                                 if (path_iter.next() != null) {
                                     if (config.log) {
                                         log.err("file encountered in middle of path", .{});
@@ -307,7 +301,7 @@ pub fn FileSystem(comptime config: Config) type {
             const search_root = self.resolveSearchRootFromPath(dir_entry, sub_path);
 
             if (config.log) {
-                log.debug("search root entry: {*}", .{search_root});
+                log.debug("inital search entry: {*}, name: \"{s}\"", .{ search_root, search_root.name });
             }
 
             const entry = (try self.resolveEntry(search_root, sub_path)) orelse return File.OpenError.FileNotFound;
@@ -315,7 +309,7 @@ pub fn FileSystem(comptime config: Config) type {
             const view = self.addView(entry) catch return error.SystemResources;
 
             if (config.log) {
-                log.debug("opened view, view: {*}, entry: {*}", .{ view, entry });
+                log.debug("opened view, view: {*}, entry: {*}, entry name: \"{s}\"", .{ view, entry, entry.name });
             }
 
             return view;
@@ -358,7 +352,7 @@ pub fn FileSystem(comptime config: Config) type {
             }
 
             if (config.log) {
-                log.debug("closed view {*}, entry: {*}", .{ view, view.entry });
+                log.debug("closed view {*}, entry: {*}, entry name: \"{s}\"", .{ view, view.entry, view.entry.name });
             }
 
             self.removeView(view);
@@ -433,6 +427,9 @@ pub fn FileSystem(comptime config: Config) type {
                 self.ref_count -= 1;
 
                 if (self.ref_count == 0) {
+                    if (config.log) {
+                        log.debug("entry {*} reference count reached zero, entry name: \"{s}\"", .{ self, self.name });
+                    }
                     self.deinit();
                     return true;
                 }
