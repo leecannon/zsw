@@ -32,7 +32,6 @@ pub fn FileSystem(comptime config: Config) type {
 
         pub fn init(allocator: std.mem.Allocator, fsd: *const FileSystemDescription) !*Self {
             var self = try allocator.create(Self);
-
             self.* = .{
                 .allocator = allocator,
                 .entries = .{},
@@ -44,15 +43,13 @@ pub fn FileSystem(comptime config: Config) type {
 
             try self.entries.ensureTotalCapacity(allocator, @intCast(u32, fsd.entries.items.len));
 
-            const ptr_to_inital_cwd = &fsd.entries.items[fsd.getCwd()];
-
             var opt_root: ?*Entry = null;
             var opt_cwd_entry: ?*Entry = null;
 
             _ = try self.initAddDirAndRecurse(
                 fsd,
-                &fsd.entries.items[fsd.getRoot()],
-                ptr_to_inital_cwd,
+                fsd.root,
+                fsd.cwd(),
                 &opt_root,
                 &opt_cwd_entry,
             );
@@ -108,9 +105,7 @@ pub fn FileSystem(comptime config: Config) type {
             if (opt_root.* == null) opt_root.* = dir_entry;
             if (opt_cwd_entry.* == null and current_dir == ptr_to_inital_cwd) opt_cwd_entry.* = dir_entry;
 
-            for (current_dir.subdata.dir.entries.items) |entry_index| {
-                const entry: *const FileSystemDescription.EntryDescription = &fsd.entries.items[entry_index];
-
+            for (current_dir.subdata.dir.entries.items) |entry| {
                 const new_entry: *Entry = switch (entry.subdata) {
                     .file => |file| try self.addFileEntry(entry.name, file.contents),
                     .dir => try self.initAddDirAndRecurse(fsd, entry, ptr_to_inital_cwd, opt_root, opt_cwd_entry),
