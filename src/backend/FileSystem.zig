@@ -191,12 +191,16 @@ pub fn FileSystem(comptime config: Config) type {
         fn resolveEntry(self: *Self, search_root: *Entry, path: []const u8) !?*Entry {
             _ = self;
             var entry: *Entry = undefined;
-            var parent = search_root;
+            var search_entry = search_root;
 
             var path_iter = std.mem.tokenize(u8, path, std.fs.path.sep_str);
             path_loop: while (path_iter.next()) |section| {
                 if (config.log) {
-                    log.debug("section: \"{s}\"", .{section});
+                    log.debug("current search entry: {*}, search entry name: \"{s}\", section: \"{s}\"", .{
+                        search_entry,
+                        search_entry.name,
+                        section,
+                    });
                 }
 
                 if (section.len == 0) continue;
@@ -209,12 +213,21 @@ pub fn FileSystem(comptime config: Config) type {
                 }
                 if (std.mem.eql(u8, section, "..")) {
                     if (config.log) {
-                        log.err("parent directory traversal is not yet implemented", .{});
+                        log.debug("traverse to parent directory section", .{});
                     }
-                    @panic("unimplemented"); // TODO
+
+                    if (search_entry.parent) |search_entry_parent| {
+                        entry = search_entry_parent;
+                        search_entry = search_entry_parent;
+                    } else if (search_entry != self.root) {
+                        // TODO: This should instead return an error, but what error? FileNotFound?
+                        @panic("attempted to traverse to parent of search entry with no parent");
+                    }
+
+                    continue;
                 }
 
-                var iter = parent.subdata.dir.entries.iterator();
+                var iter = search_entry.subdata.dir.entries.iterator();
                 while (iter.next()) |e| {
                     const child = e.key_ptr.*;
                     if (std.mem.eql(u8, child.name, section)) {
@@ -224,7 +237,7 @@ pub fn FileSystem(comptime config: Config) type {
                         switch (child.subdata) {
                             .dir => {
                                 entry = child;
-                                parent = child;
+                                search_entry = child;
                                 continue :path_loop;
                             },
                             .file => {
@@ -241,7 +254,7 @@ pub fn FileSystem(comptime config: Config) type {
                     }
                 } else {
                     if (config.log) {
-                        log.err("parent directory \"{s}\" does not contain an entry \"{s}\"", .{ parent.name, section });
+                        log.err("search directory \"{s}\" does not contain an entry \"{s}\"", .{ search_entry.name, section });
                     }
                     return null;
                 }
