@@ -24,7 +24,7 @@ fn createExamples(b: *std.build.Builder, mode: std.builtin.Mode, target: std.zig
 
         const run = example_exe.run();
 
-        const desc = try std.fmt.allocPrint(b.allocator, "run example '{s}'", .{example.name});
+        const desc = try std.fmt.allocPrint(b.allocator, "run example '{s}' from '{s}' section", .{ example.name, example.section });
 
         const example_step = b.step(example.name, desc);
         example_step.dependOn(&run.step);
@@ -49,6 +49,7 @@ fn addTests(b: *std.build.Builder, mode: std.builtin.Mode, examples: []const Exa
 }
 
 const Example = struct {
+    section: []const u8,
     name: []const u8,
     path: []const u8,
 
@@ -70,23 +71,28 @@ fn getExamples(allocator: std.mem.Allocator) ![]const Example {
         examples.deinit();
     }
 
-    var examples_dir = try std.fs.cwd().openDir("examples", .{ .iterate = true });
-    defer examples_dir.close();
+    const example_sections: []const []const u8 = &.{"file_system"};
 
-    var iter = examples_dir.iterate();
-    while (try iter.next()) |entry| {
-        if (entry.kind != .File) continue;
+    inline for (example_sections) |example_section| {
+        var examples_dir = try std.fs.cwd().openDir("examples/" ++ example_section, .{ .iterate = true });
+        defer examples_dir.close();
 
-        const path = try std.fmt.allocPrint(allocator, CURRENT_FOLDER ++ "/examples/{s}", .{entry.name});
-        errdefer allocator.free(path);
+        var iter = examples_dir.iterate();
+        while (try iter.next()) |entry| {
+            if (entry.kind != .File) continue;
 
-        const extension = std.fs.path.extension(path);
-        const name = path[(path.len - entry.name.len)..(path.len - extension.len)];
+            const path = try std.fmt.allocPrint(allocator, CURRENT_FOLDER ++ "/examples/" ++ example_section ++ "/{s}", .{entry.name});
+            errdefer allocator.free(path);
 
-        try examples.append(.{
-            .name = name,
-            .path = path,
-        });
+            const extension = std.fs.path.extension(path);
+            const name = path[(path.len - entry.name.len)..(path.len - extension.len)];
+
+            try examples.append(.{
+                .section = example_section,
+                .name = name,
+                .path = path,
+            });
+        }
     }
 
     return examples.toOwnedSlice();
