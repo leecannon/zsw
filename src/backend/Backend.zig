@@ -25,8 +25,6 @@ pub fn Backend(comptime config: Config) type {
 
         /// For information regarding the `description` argument see `Config`
         pub fn init(allocator: std.mem.Allocator, description: anytype) !Self {
-            log.info("\n\n{}\n\n", .{description});
-
             const DescriptionType = @TypeOf(description);
 
             const file_system: *FileSystem(config) = if (config.file_system) blk: {

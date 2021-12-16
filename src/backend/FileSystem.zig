@@ -70,7 +70,9 @@ pub fn FileSystem(comptime config: Config) type {
         }
 
         pub fn deinit(self: *Self) void {
-            log.debug("deinitializing FileSystem", .{});
+            if (config.log) {
+                log.debug("deinitializing FileSystem", .{});
+            }
 
             {
                 var iter = self.views.keyIterator();
@@ -199,7 +201,7 @@ pub fn FileSystem(comptime config: Config) type {
             var path_iter = std.mem.tokenize(u8, path, std.fs.path.sep_str);
             path_loop: while (path_iter.next()) |section| {
                 if (config.log) {
-                    log.debug("section: {s}", .{section});
+                    log.debug("section: \"{s}\"", .{section});
                 }
 
                 if (section.len == 0) continue;
@@ -222,7 +224,7 @@ pub fn FileSystem(comptime config: Config) type {
                     const child = e.key_ptr.*;
                     if (std.mem.eql(u8, child.name, section)) {
                         if (config.log) {
-                            log.debug("matching child found, entry: {*}, name: {s}", .{ child, child.name });
+                            log.debug("matching child found, entry: {*}, name: \"{s}\"", .{ child, child.name });
                         }
                         switch (child.subdata) {
                             .dir => {
@@ -250,7 +252,7 @@ pub fn FileSystem(comptime config: Config) type {
                     }
                 } else {
                     if (config.log) {
-                        log.err("parent directory {s} does not contain an entry {s}", .{ parent.name, section });
+                        log.err("parent directory \"{s}\" does not contain an entry \"{s}\"", .{ parent.name, section });
                     }
                     return null;
                 }
@@ -304,7 +306,7 @@ pub fn FileSystem(comptime config: Config) type {
             const dir_entry = self.cwdOrEntry(ptr) orelse return File.OpenError.NoDevice;
 
             if (config.log) {
-                log.info("openFileFromDir called, entry: {*}, sub_path: {s}, flags: {}", .{ dir_entry, sub_path, flags });
+                log.info("openFileFromDir called, entry: {*}, sub_path: \"{s}\", flags: {}", .{ dir_entry, sub_path, flags });
             }
 
             const search_root = self.resolveSearchRootFromPath(dir_entry, sub_path);
@@ -361,7 +363,7 @@ pub fn FileSystem(comptime config: Config) type {
             }
 
             if (config.log) {
-                log.debug("closed view {*}, entry: {*}, name: {s}", .{ view, view.entry, view.entry.name });
+                log.debug("closed view {*}, entry: {*}", .{ view, view.entry });
             }
 
             self.removeView(view);
