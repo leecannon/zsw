@@ -278,8 +278,27 @@ pub fn FileSystem(comptime config: Config) type {
             flags: File.OpenFlags,
         ) File.OpenError!*c_void {
             if (is_windows) {
-                // TODO: Proper windows support
+                // TODO: Implement windows
                 @compileError("Windows support is unimplemented");
+            }
+
+            if (!flags.read) {
+                // TODO: Implement *not* read
+                @panic("disabling read is unimplemented");
+            }
+
+            if (flags.write) {
+                // TODO: Implement write
+                @panic("write is unimplemented");
+            }
+
+            if (flags.lock != .None) {
+                // TODO: Implement lock
+                @panic("lock is unimplemented");
+            }
+
+            if (flags.allow_ctty) {
+                @panic("allow_ctty is unsupported");
             }
 
             const dir_entry = self.cwdOrEntry(ptr) orelse return File.OpenError.NoDevice;
