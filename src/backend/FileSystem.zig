@@ -181,51 +181,28 @@ pub fn FileSystem(comptime config: Config) type {
             return null;
         }
 
-        // ** EXTERNAL API
-
-        pub fn cwd(self: *Self) *c_void {
-            _ = self;
-
-            if (config.log) {
-                log.info("cwd called", .{});
-            }
-
-            return CWD;
+        fn cwdOrEntry(self: *Self, ptr: *c_void) ?*Entry {
+            if (isCwd(ptr)) return self.cwd_entry;
+            if (self.toView(ptr)) |v| return v.entry;
+            return null;
         }
 
-        pub fn openFileFromDir(
-            self: *Self,
-            ptr: *c_void,
-            sub_path: []const u8,
-            flags: File.OpenFlags,
-        ) File.OpenError!*c_void {
-            const dir_entry = if (isCwd(ptr)) self.cwd_entry else blk: {
-                const dir_view = self.toView(ptr) orelse return File.OpenError.NoDevice;
-                break :blk dir_view.entry;
-            };
+        fn resolveSearchRootFromPath(self: *Self, possible_parent: *Entry, path: []const u8) *Entry {
+            return if (std.fs.path.isAbsolute(path)) self.root else possible_parent;
+        }
 
-            if (config.log) {
-                log.info("openFileFromDir called, entry: {*}, sub_path: {s}, flags: {}", .{ dir_entry, sub_path, flags });
-            }
-
-            var parent: *Entry = if (std.fs.path.isAbsolute(sub_path)) self.root else dir_entry;
-
-            if (config.log) {
-                log.debug("initial parent entry: {*}", .{parent});
-            }
-
+        fn resolveEntry(self: *Self, search_root: *Entry, path: []const u8) !?*Entry {
+            _ = self;
             var entry: *Entry = undefined;
+            var parent = search_root;
 
-            if (is_windows) {
-                // TODO: Proper windows support
-                @compileError("Windows support is unimplemented");
-            }
-
-            var path_iter = std.mem.tokenize(u8, sub_path, std.fs.path.sep_str);
+            var path_iter = std.mem.tokenize(u8, path, std.fs.path.sep_str);
             path_loop: while (path_iter.next()) |section| {
                 if (config.log) {
                     log.debug("section: {s}", .{section});
                 }
+
+                if (section.len == 0) continue;
 
                 if (std.mem.eql(u8, section, ".")) {
                     if (config.log) {
@@ -275,9 +252,49 @@ pub fn FileSystem(comptime config: Config) type {
                     if (config.log) {
                         log.err("parent directory {s} does not contain an entry {s}", .{ parent.name, section });
                     }
-                    return File.OpenError.FileNotFound;
+                    return null;
                 }
             }
+
+            return entry;
+        }
+
+        // ** EXTERNAL API
+
+        pub fn cwd(self: *Self) *c_void {
+            _ = self;
+
+            if (config.log) {
+                log.info("cwd called", .{});
+            }
+
+            return CWD;
+        }
+
+        pub fn openFileFromDir(
+            self: *Self,
+            ptr: *c_void,
+            sub_path: []const u8,
+            flags: File.OpenFlags,
+        ) File.OpenError!*c_void {
+            if (is_windows) {
+                // TODO: Proper windows support
+                @compileError("Windows support is unimplemented");
+            }
+
+            const dir_entry = self.cwdOrEntry(ptr) orelse return File.OpenError.NoDevice;
+
+            if (config.log) {
+                log.info("openFileFromDir called, entry: {*}, sub_path: {s}, flags: {}", .{ dir_entry, sub_path, flags });
+            }
+
+            const search_root = self.resolveSearchRootFromPath(dir_entry, sub_path);
+
+            if (config.log) {
+                log.debug("search root entry: {*}", .{search_root});
+            }
+
+            const entry = (try self.resolveEntry(search_root, sub_path)) orelse return File.OpenError.FileNotFound;
 
             const view = self.addView(entry) catch return error.SystemResources;
 
