@@ -1,4 +1,6 @@
 const std = @import("std");
+const builtin = @import("builtin");
+const is_windows: bool = builtin.os.tag == .windows;
 
 const System = @import("../interface/System.zig").System;
 const Dir = @import("../interface/Dir.zig").Dir;
@@ -200,7 +202,11 @@ pub fn FileSystem(comptime config: Config) type {
 
             var entry: *Entry = undefined;
 
-            // TODO: Proper windows support
+            if (is_windows) {
+                // TODO: Proper windows support
+                @compileError("Windows support is unimplemented");
+            }
+
             var path_iter = std.mem.tokenize(u8, sub_path, std.fs.path.sep_str);
             path_loop: while (path_iter.next()) |section| {
                 if (config.log) {
