@@ -219,7 +219,7 @@ pub fn FileSystem(comptime config: Config) type {
 
                 var iter = parent.subdata.dir.entries.iterator();
                 while (iter.next()) |e| {
-                    const child = Entry.toEntry(e.key_ptr.*);
+                    const child = e.key_ptr.*;
                     if (std.mem.eql(u8, child.name, section)) {
                         if (config.log) {
                             log.debug("matching child found, entry: {*}, name: {s}", .{ child, child.name });
@@ -372,8 +372,7 @@ pub fn FileSystem(comptime config: Config) type {
             name: []const u8,
             subdata: SubData,
 
-            // BUG: Zig thinks std.AutoArrayHashMapUnmanaged(*Entry, void) is a dependency loop
-            parents: std.AutoHashMapUnmanaged(*c_void, void) = .{},
+            parent: ?*Entry = null,
 
             allocator: std.mem.Allocator,
             file_system: *FileSystemType,
@@ -387,14 +386,9 @@ pub fn FileSystem(comptime config: Config) type {
                 };
 
                 const DirData = struct {
-                    // BUG: Zig thinks std.AutoArrayHashMapUnmanaged(*Entry, void) is a dependency loop
-                    entries: std.AutoArrayHashMapUnmanaged(*c_void, void) = .{},
+                    entries: std.AutoArrayHashMapUnmanaged(*Entry, void) = .{},
                 };
             };
-
-            inline fn toEntry(ptr: *c_void) *Entry {
-                return @ptrCast(*Entry, @alignCast(@alignOf(Entry), ptr));
-            }
 
             fn createFile(allocator: std.mem.Allocator, file_system: *FileSystemType, name: []const u8, contents: []const u8) !*Entry {
                 const dupe_name = try allocator.dupe(u8, name);
@@ -449,18 +443,27 @@ pub fn FileSystem(comptime config: Config) type {
                 return false;
             }
 
-            fn addParent(self: *Entry, parent: *Entry) !void {
+            fn setParent(self: *Entry, parent: *Entry) !void {
                 self.incrementReference();
-                errdefer _ = self.decrementReference();
 
-                if (try self.parents.fetchPut(self.allocator, parent, {})) |_| {
-                    _ = self.decrementReference();
+                if (self.parent) |old_parent| {
+                    _ = old_parent.decrementReference();
                 }
+
+                self.parent = parent;
             }
 
             /// Returns `true` if the entry has been destroyed
-            fn removeParent(self: *Entry, parent: *Entry) bool {
-                if (self.parents.remove(parent)) return self.decrementReference();
+            fn unsetParent(self: *Entry) bool {
+                if (self.parent) |old_parent| {
+                    _ = old_parent.decrementReference();
+                }
+
+                if (self.decrementReference()) {
+                    return true;
+                }
+
+                self.parent = null;
                 return false;
             }
 
@@ -476,7 +479,7 @@ pub fn FileSystem(comptime config: Config) type {
                 }
                 errdefer _ = self.subdata.dir.entries.swapRemove(entry);
 
-                try entry.addParent(self);
+                try entry.setParent(self);
             }
 
             /// Returns true if the entry has been destroyed
@@ -484,8 +487,7 @@ pub fn FileSystem(comptime config: Config) type {
                 std.debug.assert(self.subdata == .dir);
 
                 if (self.subdata.dir.entries.fetchSwapRemove(entry)) |e| {
-                    _ = toEntry(e.key).removeParent(self);
-                    return self.decrementReference();
+                    return e.key.unsetParent();
                 }
 
                 return false;
@@ -493,7 +495,6 @@ pub fn FileSystem(comptime config: Config) type {
 
             fn deinit(self: *Entry) void {
                 self.allocator.free(self.name);
-                self.parents.deinit(self.allocator);
                 switch (self.subdata) {
                     .file => |file| self.allocator.free(file.contents),
                     .dir => |*dir| dir.entries.deinit(self.allocator),
