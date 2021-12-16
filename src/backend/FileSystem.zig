@@ -184,7 +184,7 @@ pub fn FileSystem(comptime config: Config) type {
             flags: File.OpenFlags,
         ) File.OpenError!*c_void {
             const dir_entry = if (isCwd(ptr)) self.cwd_entry else blk: {
-                const dir_view = self.toView(ptr) orelse return File.OpenError.Unexpected; // TODO: Is this the right error?
+                const dir_view = self.toView(ptr) orelse return File.OpenError.NoDevice;
                 break :blk dir_view.entry;
             };
 
