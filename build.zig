@@ -22,10 +22,12 @@ fn createExamples(b: *std.build.Builder, mode: std.builtin.Mode, target: std.zig
         example_exe.setTarget(target);
         example_exe.addPackage(pkg);
 
+        const run = example_exe.run();
+
         const desc = try std.fmt.allocPrint(b.allocator, "run example '{s}'", .{example.name});
 
         const example_step = b.step(example.name, desc);
-        example_step.dependOn(&example_exe.step);
+        example_step.dependOn(&run.step);
     }
 }
 
