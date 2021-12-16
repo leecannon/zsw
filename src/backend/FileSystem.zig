@@ -28,6 +28,8 @@ pub fn FileSystem(comptime config: Config) type {
 
         const log = std.log.scoped(config.logging_scope);
 
+        // ** INITALIZATION **
+
         pub fn init(allocator: std.mem.Allocator, fsd: *const FileSystemDescription) !*Self {
             var self = try allocator.create(Self);
 
@@ -118,6 +120,8 @@ pub fn FileSystem(comptime config: Config) type {
             return dir_entry;
         }
 
+        // ** INTERNAL API
+
         fn addFileEntry(self: *Self, name: []const u8, contents: []const u8) !*Entry {
             const entry = try Entry.createFile(self.allocator, self, name, contents);
             errdefer entry.deinit();
@@ -168,6 +172,16 @@ pub fn FileSystem(comptime config: Config) type {
         inline fn isCwd(ptr: *c_void) bool {
             return CWD == ptr;
         }
+
+        inline fn toView(self: *Self, ptr: *c_void) ?*View {
+            const view = @ptrCast(*View, @alignCast(@alignOf(View), ptr));
+            if (self.views.contains(view)) {
+                return view;
+            }
+            return null;
+        }
+
+        // ** EXTERNAL API
 
         pub fn cwd(self: *Self) *c_void {
             _ = self;
@@ -315,14 +329,6 @@ pub fn FileSystem(comptime config: Config) type {
             }
 
             self.removeView(view);
-        }
-
-        inline fn toView(self: *Self, ptr: *c_void) ?*View {
-            const view = @ptrCast(*View, @alignCast(@alignOf(View), ptr));
-            if (self.views.contains(view)) {
-                return view;
-            }
-            return null;
         }
 
         const Entry = struct {

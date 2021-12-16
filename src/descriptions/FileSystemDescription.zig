@@ -1,8 +1,8 @@
 const std = @import("std");
 
-pub const FileSystemDescription = struct {
-    // TODO: It would be very nice if there was a way to do this without an allocator; preferably at comptime
+// TODO: It would be very nice if there was a way to do this without an allocator; preferably at comptime
 
+pub const FileSystemDescription = struct {
     allocator: std.mem.Allocator,
 
     /// Do not modify directly

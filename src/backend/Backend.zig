@@ -78,72 +78,72 @@ pub fn Backend(comptime config: Config) type {
             self.* = undefined;
         }
 
-        pub inline fn getSystem(self: *Self) System {
+        pub inline fn system(self: *Self) System {
             return .{
                 .ptr = self,
                 .vtable = &vtable,
             };
         }
 
-        fn cwd(system: System) Dir {
+        fn cwd(interface: System) Dir {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
-                    return host_backend.cwd(system);
+                    return host_backend.cwd(interface);
                 }
                 @panic("cwd requires file_system capability");
             }
 
             return .{
-                .system = system,
-                .data = .{ .custom = getSelf(system).file_system.cwd() },
+                .system = interface,
+                .data = .{ .custom = getSelf(interface).file_system.cwd() },
             };
         }
 
-        fn openFileFromDir(system: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
+        fn openFileFromDir(interface: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
-                    return host_backend.openFileFromDir(system, dir, sub_path, flags);
+                    return host_backend.openFileFromDir(interface, dir, sub_path, flags);
                 }
                 @panic("openFileFromDir requires file_system capability");
             }
 
             return File{
-                .system = system,
-                .data = .{ .custom = try getSelf(system).file_system.openFileFromDir(dir.data.custom, sub_path, flags) },
+                .system = interface,
+                .data = .{ .custom = try getSelf(interface).file_system.openFileFromDir(dir.data.custom, sub_path, flags) },
             };
         }
 
-        fn readFile(system: System, file: File, buffer: []u8) std.os.ReadError!usize {
+        fn readFile(interface: System, file: File, buffer: []u8) std.os.ReadError!usize {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
-                    return host_backend.readFile(system, file, buffer);
+                    return host_backend.readFile(interface, file, buffer);
                 }
                 @panic("readFile requires file_system capability");
             }
 
-            return try getSelf(system).file_system.readFile(file.data.custom, buffer);
+            return try getSelf(interface).file_system.readFile(file.data.custom, buffer);
         }
 
-        fn closeFile(system: System, file: File) void {
+        fn closeFile(interface: System, file: File) void {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
-                    return host_backend.closeFile(system, file);
+                    return host_backend.closeFile(interface, file);
                 }
                 @panic("closeFile requires file_system capability");
             }
 
-            getSelf(system).file_system.closeFile(file.data.custom);
+            getSelf(interface).file_system.closeFile(file.data.custom);
         }
 
-        fn osLinuxGeteuid(system: System) std.os.uid_t {
+        fn osLinuxGeteuid(interface: System) std.os.uid_t {
             if (!config.linux_user_group) {
                 if (config.fallback_to_host) {
-                    return host_backend.osLinuxGeteuid(system);
+                    return host_backend.osLinuxGeteuid(interface);
                 }
                 @panic("osLinuxGeteuid requires file_system capability");
             }
 
-            return getSelf(system).linux_user_group.osLinuxGeteuid();
+            return getSelf(interface).linux_user_group.osLinuxGeteuid();
         }
 
         const vtable: System.VTable = .{
@@ -154,8 +154,8 @@ pub fn Backend(comptime config: Config) type {
             .osLinuxGeteuid = osLinuxGeteuid,
         };
 
-        inline fn getSelf(system: System) *Self {
-            return @ptrCast(*Self, @alignCast(@alignOf(Self), system.ptr));
+        inline fn getSelf(interface: System) *Self {
+            return @ptrCast(*Self, @alignCast(@alignOf(Self), interface.ptr));
         }
 
         comptime {

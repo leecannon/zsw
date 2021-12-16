@@ -12,8 +12,6 @@ pub fn LinuxUserGroup(comptime config: Config) type {
         const log = std.log.scoped(config.logging_scope);
 
         pub fn osLinuxGeteuid(self: *Self) std.os.uid_t {
-            _ = self;
-
             if (config.log) {
                 log.info("osLinuxGeteuid called, returning {}", .{self.euid});
             }

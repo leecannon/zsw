@@ -7,7 +7,7 @@ pub const Dir = struct {
     system: System,
     data: Data,
 
-    pub const Data = extern union {
+    pub const Data = union {
         host: std.fs.Dir,
         custom: *c_void,
     };

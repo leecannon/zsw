@@ -8,8 +8,8 @@ pub const Config = struct {
     /// The `std.log` scope to use
     logging_scope: @Type(.EnumLiteral) = .zsw,
 
-    /// If the requested capability is not enabled and this is `true` the request is forwarded to the host
-    /// If this is `false` panic
+    /// If the requested capability is not enabled and this is `true` the request is forwarded
+    /// to the host, if this is `false` panic
     fallback_to_host: bool = true,
 
     /// Enable file system capability
@@ -25,7 +25,6 @@ pub const Config = struct {
     linux_user_group: bool = false,
 
     // TODO: Actually implement this
-    /// Should all functionality be safe in a multi-threaded application
     thread_safe: bool = false,
 
     comptime {

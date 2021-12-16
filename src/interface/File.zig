@@ -6,7 +6,7 @@ pub const File = struct {
     system: System,
     data: Data,
 
-    pub const Data = extern union {
+    pub const Data = union {
         host: std.fs.File,
         custom: *c_void,
     };
