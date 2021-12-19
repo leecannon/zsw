@@ -4,7 +4,7 @@ const Dir = @import("Dir.zig").Dir;
 const File = @import("File.zig").File;
 
 pub const System = struct {
-    ptr: *c_void,
+    ptr: *anyopaque,
     vtable: *const VTable,
 
     pub inline fn cwd(self: System) Dir {

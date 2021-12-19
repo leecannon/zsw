@@ -8,7 +8,7 @@ pub const File = struct {
 
     pub const Data = union {
         host: std.fs.File,
-        custom: *c_void,
+        custom: *anyopaque,
     };
 
     pub const OpenFlags = std.fs.File.OpenFlags;

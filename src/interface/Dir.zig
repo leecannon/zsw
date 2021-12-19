@@ -9,7 +9,7 @@ pub const Dir = struct {
 
     pub const Data = union {
         host: std.fs.Dir,
-        custom: *c_void,
+        custom: *anyopaque,
     };
 
     pub inline fn openFile(self: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {

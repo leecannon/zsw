@@ -21,7 +21,7 @@ pub fn FileSystem(comptime config: Config) type {
         root: *Entry,
         cwd_entry: *Entry,
 
-        const CWD = @intToPtr(*c_void, std.mem.alignBackward(std.math.maxInt(usize), @alignOf(View)));
+        const CWD = @intToPtr(*anyopaque, std.mem.alignBackward(std.math.maxInt(usize), @alignOf(View)));
 
         const Self = @This();
         const FileSystemType = Self;
@@ -166,11 +166,11 @@ pub fn FileSystem(comptime config: Config) type {
             self.cwd_entry = entry;
         }
 
-        inline fn isCwd(ptr: *c_void) bool {
+        inline fn isCwd(ptr: *anyopaque) bool {
             return CWD == ptr;
         }
 
-        inline fn toView(self: *Self, ptr: *c_void) ?*View {
+        inline fn toView(self: *Self, ptr: *anyopaque) ?*View {
             const view = @ptrCast(*View, @alignCast(@alignOf(View), ptr));
             if (self.views.contains(view)) {
                 return view;
@@ -178,7 +178,7 @@ pub fn FileSystem(comptime config: Config) type {
             return null;
         }
 
-        fn cwdOrEntry(self: *Self, ptr: *c_void) ?*Entry {
+        fn cwdOrEntry(self: *Self, ptr: *anyopaque) ?*Entry {
             if (isCwd(ptr)) return self.cwd_entry;
             if (self.toView(ptr)) |v| return v.entry;
             return null;
@@ -265,7 +265,7 @@ pub fn FileSystem(comptime config: Config) type {
 
         // ** EXTERNAL API
 
-        pub fn cwd(self: *Self) *c_void {
+        pub fn cwd(self: *Self) *anyopaque {
             _ = self;
 
             if (config.log) {
@@ -277,10 +277,10 @@ pub fn FileSystem(comptime config: Config) type {
 
         pub fn openFileFromDir(
             self: *Self,
-            ptr: *c_void,
+            ptr: *anyopaque,
             sub_path: []const u8,
             flags: File.OpenFlags,
-        ) File.OpenError!*c_void {
+        ) File.OpenError!*anyopaque {
             if (is_windows) {
                 // TODO: Implement windows
                 @compileError("Windows support is unimplemented");
@@ -328,7 +328,7 @@ pub fn FileSystem(comptime config: Config) type {
             return view;
         }
 
-        pub fn readFile(self: *Self, ptr: *c_void, buffer: []u8) std.os.ReadError!usize {
+        pub fn readFile(self: *Self, ptr: *anyopaque, buffer: []u8) std.os.ReadError!usize {
             const view = self.toView(ptr) orelse return error.NotOpenForReading;
 
             if (config.log) {
@@ -357,7 +357,7 @@ pub fn FileSystem(comptime config: Config) type {
             }
         }
 
-        pub fn closeFile(self: *Self, ptr: *c_void) void {
+        pub fn closeFile(self: *Self, ptr: *anyopaque) void {
             const view = self.toView(ptr) orelse return;
 
             if (config.log) {
