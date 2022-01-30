@@ -286,14 +286,9 @@ pub fn FileSystem(comptime config: Config) type {
                 @compileError("Windows support is unimplemented");
             }
 
-            if (!flags.read) {
-                // TODO: Implement *not* read
-                @panic("disabling read is unimplemented");
-            }
-
-            if (flags.write) {
-                // TODO: Implement write
-                @panic("write is unimplemented");
+            if (flags.mode != .read_only) {
+                // TODO: Implement *not* read_only
+                std.debug.panic("file mode '{s}' is unimplemented", .{@tagName(flags.mode)});
             }
 
             if (flags.lock != .None) {
