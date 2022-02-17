@@ -33,6 +33,10 @@ pub const System = struct {
             std.testing.refAllDecls(@This());
         }
     };
+
+    comptime {
+        std.testing.refAllDecls(@This());
+    }
 };
 
 comptime {

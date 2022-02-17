@@ -309,7 +309,7 @@ pub fn FileSystem(comptime config: Config) type {
             const search_root = self.resolveSearchRootFromPath(dir_entry, sub_path);
 
             if (config.log) {
-                log.debug("inital search entry: {*}, name: \"{s}\"", .{ search_root, search_root.name });
+                log.debug("initial search entry: {*}, name: \"{s}\"", .{ search_root, search_root.name });
             }
 
             const entry = (try self.resolveEntry(search_root, sub_path)) orelse return File.OpenError.FileNotFound;
@@ -343,7 +343,7 @@ pub fn FileSystem(comptime config: Config) type {
                     const size = std.math.min(buffer.len, file.contents.len - view.position);
                     const end = view.position + size;
 
-                    std.mem.copy(u8, buffer[0..size], file.contents[view.position..end]);
+                    std.mem.copy(u8, buffer, file.contents[view.position..end]);
 
                     view.position = end;
 
@@ -389,7 +389,12 @@ pub fn FileSystem(comptime config: Config) type {
                 };
             };
 
-            fn createFile(allocator: std.mem.Allocator, file_system: *FileSystemType, name: []const u8, contents: []const u8) !*Entry {
+            fn createFile(
+                allocator: std.mem.Allocator,
+                file_system: *FileSystemType,
+                name: []const u8,
+                contents: []const u8,
+            ) !*Entry {
                 const dupe_name = try allocator.dupe(u8, name);
                 errdefer allocator.free(dupe_name);
 
@@ -446,10 +451,10 @@ pub fn FileSystem(comptime config: Config) type {
             }
 
             fn setParent(self: *Entry, parent: *Entry) !void {
-                self.incrementReference();
-
                 if (self.parent) |old_parent| {
                     _ = old_parent.decrementReference();
+                } else {
+                    self.incrementReference();
                 }
 
                 self.parent = parent;
@@ -476,7 +481,6 @@ pub fn FileSystem(comptime config: Config) type {
                 errdefer _ = self.decrementReference();
 
                 if (try self.subdata.dir.entries.fetchPut(self.allocator, entry, {})) |_| {
-                    _ = self.decrementReference();
                     return error.DuplicateEntry;
                 }
                 errdefer _ = self.subdata.dir.entries.swapRemove(entry);

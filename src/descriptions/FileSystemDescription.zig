@@ -5,7 +5,11 @@ pub const FileSystemDescription = struct {
 
     /// Do not modify directly
     entries: std.ArrayListUnmanaged(*EntryDescription) = .{},
+
+    /// Do not modify directly
     root: *EntryDescription,
+
+    /// Do not modify directly
     _cwd: *EntryDescription,
 
     pub fn init(allocator: std.mem.Allocator) !*FileSystemDescription {
