@@ -6,8 +6,8 @@ const System = @import("../interface/System.zig").System;
 const Dir = @import("../interface/Dir.zig").Dir;
 const File = @import("../interface/File.zig").File;
 
-const Config = @import("../Config.zig").Config;
-const FileSystemDescription = @import("../descriptions/FileSystemDescription.zig").FileSystemDescription;
+const Config = @import("../config/Config.zig").Config;
+const FileSystemDescription = @import("../config/FileSystemDescription.zig").FileSystemDescription;
 
 pub fn FileSystem(comptime config: Config) type {
     if (!config.file_system) return struct {};
@@ -49,7 +49,7 @@ pub fn FileSystem(comptime config: Config) type {
             _ = try self.initAddDirAndRecurse(
                 fsd,
                 fsd.root,
-                fsd.cwd(),
+                fsd.getCwd(),
                 &opt_root,
                 &opt_cwd_entry,
             );
@@ -535,7 +535,7 @@ pub fn FileSystem(comptime config: Config) type {
 }
 
 comptime {
-    @import("../Config.zig").referenceAllIterations(FileSystem);
+    @import("../config/Config.zig").referenceAllIterations(FileSystem);
 }
 
 comptime {

@@ -2,9 +2,9 @@ const std = @import("std");
 
 // ** CONFIGRATION
 
-pub const Config = @import("Config.zig").Config;
-pub const FileSystemDescription = @import("descriptions/FileSystemDescription.zig").FileSystemDescription;
-pub const LinuxUserGroupDescription = @import("descriptions/LinuxUserGroupDescription.zig").LinuxUserGroupDescription;
+pub const Config = @import("config/Config.zig").Config;
+pub const FileSystemDescription = @import("config/FileSystemDescription.zig").FileSystemDescription;
+pub const LinuxUserGroupDescription = @import("config/LinuxUserGroupDescription.zig").LinuxUserGroupDescription;
 
 // ** CUSTOM BACKEND
 

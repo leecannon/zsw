@@ -4,9 +4,9 @@ const System = @import("../interface/System.zig").System;
 const Dir = @import("../interface/Dir.zig").Dir;
 const File = @import("../interface/File.zig").File;
 
-const Config = @import("../Config.zig").Config;
-const FileSystemDescription = @import("../descriptions/FileSystemDescription.zig").FileSystemDescription;
-const LinuxUserGroupDescription = @import("../descriptions/LinuxUserGroupDescription.zig").LinuxUserGroupDescription;
+const Config = @import("../config/Config.zig").Config;
+const FileSystemDescription = @import("../config/FileSystemDescription.zig").FileSystemDescription;
+const LinuxUserGroupDescription = @import("../config/LinuxUserGroupDescription.zig").LinuxUserGroupDescription;
 
 const FileSystem = @import("FileSystem.zig").FileSystem;
 const LinuxUserGroup = @import("LinuxUserGroup.zig").LinuxUserGroup;
@@ -163,7 +163,7 @@ pub fn Backend(comptime config: Config) type {
 }
 
 comptime {
-    @import("../Config.zig").referenceAllIterations(Backend);
+    @import("../config/Config.zig").referenceAllIterations(Backend);
 }
 
 comptime {

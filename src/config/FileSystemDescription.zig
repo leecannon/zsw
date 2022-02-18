@@ -10,7 +10,7 @@ pub const FileSystemDescription = struct {
     root: *EntryDescription,
 
     /// Do not modify directly
-    _cwd: *EntryDescription,
+    cwd: *EntryDescription,
 
     pub fn init(allocator: std.mem.Allocator) !*FileSystemDescription {
         var fs_desc = try allocator.create(FileSystemDescription);
@@ -31,7 +31,7 @@ pub const FileSystemDescription = struct {
         fs_desc.* = .{
             .allocator = allocator,
             .root = root_dir,
-            ._cwd = root_dir,
+            .cwd = root_dir,
         };
 
         try fs_desc.entries.append(allocator, root_dir);
@@ -45,13 +45,13 @@ pub const FileSystemDescription = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn cwd(self: *const FileSystemDescription) *EntryDescription {
-        return self._cwd;
+    pub fn getCwd(self: *const FileSystemDescription) *EntryDescription {
+        return self.cwd;
     }
 
     pub fn setCwd(self: *FileSystemDescription, entry: *EntryDescription) void {
         std.debug.assert(entry.subdata == .dir);
-        self._cwd = entry;
+        self.cwd = entry;
     }
 
     pub const EntryDescription = struct {
