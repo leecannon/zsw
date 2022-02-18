@@ -1,6 +1,6 @@
 const std = @import("std");
 
-// ** CONFIGRATION
+// ** CONFIGURATION
 
 pub const Config = @import("config/Config.zig").Config;
 pub const FileSystemDescription = @import("config/FileSystemDescription.zig").FileSystemDescription;
