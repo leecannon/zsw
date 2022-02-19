@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Config = @import("../config/Config.zig").Config;
+const Config = @import("../config/Config.zig");
 
 pub fn LinuxUserGroup(comptime config: Config) type {
     if (!config.linux_user_group) return struct {};
@@ -22,7 +22,7 @@ pub fn LinuxUserGroup(comptime config: Config) type {
 }
 
 comptime {
-    @import("../config/Config.zig").referenceAllIterations(LinuxUserGroup);
+    @import("../internal.zig").referenceAllIterations(LinuxUserGroup);
 }
 
 comptime {

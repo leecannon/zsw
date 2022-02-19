@@ -1,8 +1,8 @@
 const std = @import("std");
 
-const System = @import("../interface/System.zig").System;
-const Dir = @import("../interface/Dir.zig").Dir;
-const File = @import("../interface/File.zig").File;
+const System = @import("../interface/System.zig");
+const Dir = @import("../interface/Dir.zig");
+const File = @import("../interface/File.zig");
 
 pub fn cwd(system: System) Dir {
     return .{

@@ -2,12 +2,12 @@ const std = @import("std");
 const builtin = @import("builtin");
 const is_windows: bool = builtin.os.tag == .windows;
 
-const System = @import("../interface/System.zig").System;
-const Dir = @import("../interface/Dir.zig").Dir;
-const File = @import("../interface/File.zig").File;
+const System = @import("../interface/System.zig");
+const Dir = @import("../interface/Dir.zig");
+const File = @import("../interface/File.zig");
 
-const Config = @import("../config/Config.zig").Config;
-const FileSystemDescription = @import("../config/FileSystemDescription.zig").FileSystemDescription;
+const Config = @import("../config/Config.zig");
+const FileSystemDescription = @import("../config/FileSystemDescription.zig");
 
 pub fn FileSystem(comptime config: Config) type {
     if (!config.file_system) return struct {};
@@ -535,7 +535,7 @@ pub fn FileSystem(comptime config: Config) type {
 }
 
 comptime {
-    @import("../config/Config.zig").referenceAllIterations(FileSystem);
+    @import("../internal.zig").referenceAllIterations(FileSystem);
 }
 
 comptime {

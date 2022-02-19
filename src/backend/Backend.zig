@@ -1,12 +1,12 @@
 const std = @import("std");
 
-const System = @import("../interface/System.zig").System;
-const Dir = @import("../interface/Dir.zig").Dir;
-const File = @import("../interface/File.zig").File;
+const System = @import("../interface/System.zig");
+const Dir = @import("../interface/Dir.zig");
+const File = @import("../interface/File.zig");
 
-const Config = @import("../config/Config.zig").Config;
-const FileSystemDescription = @import("../config/FileSystemDescription.zig").FileSystemDescription;
-const LinuxUserGroupDescription = @import("../config/LinuxUserGroupDescription.zig").LinuxUserGroupDescription;
+const Config = @import("../config/Config.zig");
+const FileSystemDescription = @import("../config/FileSystemDescription.zig");
+const LinuxUserGroupDescription = @import("../config/LinuxUserGroupDescription.zig");
 
 const FileSystem = @import("FileSystem.zig").FileSystem;
 const LinuxUserGroup = @import("LinuxUserGroup.zig").LinuxUserGroup;
@@ -157,13 +157,13 @@ pub fn Backend(comptime config: Config) type {
         }
 
         comptime {
+            @import("../internal.zig").referenceAllIterations(Backend);
+        }
+
+        comptime {
             std.testing.refAllDecls(@This());
         }
     };
-}
-
-comptime {
-    @import("../config/Config.zig").referenceAllIterations(Backend);
 }
 
 comptime {
