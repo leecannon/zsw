@@ -2,7 +2,7 @@ const std = @import("std");
 
 const pkg = std.build.Pkg{
     .name = "zsw",
-    .path = .{ .path = "src/main.zig" },
+    .source = .{ .path = "src/main.zig" },
 };
 
 pub fn build(b: *std.build.Builder) !void {
@@ -74,7 +74,7 @@ fn getExamples(allocator: std.mem.Allocator) ![]const Example {
     const example_sections: []const []const u8 = &.{"file_system"};
 
     inline for (example_sections) |example_section| {
-        var examples_dir = try std.fs.cwd().openDir("examples/" ++ example_section, .{ .iterate = true });
+        var examples_dir = try std.fs.cwd().openIterableDir("examples/" ++ example_section, .{});
         defer examples_dir.close();
 
         var iter = examples_dir.iterate();
