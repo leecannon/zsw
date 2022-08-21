@@ -21,7 +21,7 @@ jobs:
           version: master
       
       - name: build
-        run: zig build
+        run: zig build -fstage1
   lint:
     runs-on: ubuntu-latest
     steps:
