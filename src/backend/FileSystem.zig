@@ -189,7 +189,6 @@ pub fn FileSystem(comptime config: Config) type {
         }
 
         fn resolveEntry(self: *Self, search_root: *Entry, path: []const u8) !?*Entry {
-            _ = self;
             var entry: *Entry = undefined;
             var search_entry = search_root;
 
