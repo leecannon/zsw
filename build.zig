@@ -6,8 +6,6 @@ const pkg = std.build.Pkg{
 };
 
 pub fn build(b: *std.build.Builder) !void {
-    b.use_stage1 = true;
-
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
