@@ -24,6 +24,17 @@ pub fn FileSystem(comptime config: Config) type {
         root: *Entry,
         cwd_entry: *Entry,
 
+        // TODO: Implement proper permissions
+        const DEFAULT_PERMISSIONS: std.os.mode_t = blk: {
+            var permissions: std.os.mode_t = 0;
+
+            permissions |= std.os.S.IRWXU; // RWX for owner
+            permissions |= std.os.S.IRWXG; // RWX for group
+            permissions |= std.os.S.IRWXO; // RWX for other
+
+            break :blk permissions;
+        };
+
         const CWD = @intToPtr(*anyopaque, std.mem.alignBackward(std.math.maxInt(usize), @alignOf(View)));
 
         const Self = @This();
@@ -55,6 +66,7 @@ pub fn FileSystem(comptime config: Config) type {
                 fsd.getCwd(),
                 &opt_root,
                 &opt_cwd_entry,
+                system.nanoTimestamp(),
             );
 
             if (opt_root) |root| {
@@ -98,21 +110,29 @@ pub fn FileSystem(comptime config: Config) type {
             ptr_to_inital_cwd: *const FileSystemDescription.EntryDescription,
             opt_root: *?*Entry,
             opt_cwd_entry: *?*Entry,
+            current_time: i128,
         ) (error{DuplicateEntry} || std.mem.Allocator.Error)!*Entry {
             std.debug.assert(current_dir.subdata == .dir);
 
-            const dir_entry = try self.addDirEntry(current_dir.name);
+            const dir_entry = try self.addDirEntry(current_dir.name, current_time);
 
             if (opt_root.* == null) opt_root.* = dir_entry;
             if (opt_cwd_entry.* == null and current_dir == ptr_to_inital_cwd) opt_cwd_entry.* = dir_entry;
 
             for (current_dir.subdata.dir.entries.items) |entry| {
                 const new_entry: *Entry = switch (entry.subdata) {
-                    .file => |file| try self.addFileEntry(entry.name, file.contents),
-                    .dir => try self.initAddDirAndRecurse(fsd, entry, ptr_to_inital_cwd, opt_root, opt_cwd_entry),
+                    .file => |file| try self.addFileEntry(entry.name, file.contents, current_time),
+                    .dir => try self.initAddDirAndRecurse(
+                        fsd,
+                        entry,
+                        ptr_to_inital_cwd,
+                        opt_root,
+                        opt_cwd_entry,
+                        current_time,
+                    ),
                 };
 
-                try dir_entry.addEntry(new_entry);
+                try dir_entry.addEntry(new_entry, current_time);
             }
 
             return dir_entry;
@@ -120,8 +140,8 @@ pub fn FileSystem(comptime config: Config) type {
 
         // ** INTERNAL API
 
-        fn addFileEntry(self: *Self, name: []const u8, contents: []const u8) !*Entry {
-            const entry = try Entry.createFile(self.allocator, self, name, contents);
+        fn addFileEntry(self: *Self, name: []const u8, contents: []const u8, current_time: i128) !*Entry {
+            const entry = try Entry.createFile(self.allocator, self, name, contents, current_time);
             errdefer entry.deinit();
 
             try self.entries.putNoClobber(self.allocator, entry, {});
@@ -129,8 +149,8 @@ pub fn FileSystem(comptime config: Config) type {
             return entry;
         }
 
-        fn addDirEntry(self: *Self, name: []const u8) !*Entry {
-            const entry = try Entry.createDir(self.allocator, self, name);
+        fn addDirEntry(self: *Self, name: []const u8, current_time: i128) !*Entry {
+            const entry = try Entry.createDir(self.allocator, self, name, current_time);
             errdefer entry.deinit();
 
             try self.entries.putNoClobber(self.allocator, entry, {});
@@ -347,9 +367,45 @@ pub fn FileSystem(comptime config: Config) type {
 
                     view.position = end;
 
+                    entry.atime = self.system.nanoTimestamp();
+
                     return size;
                 },
             }
+        }
+
+        pub fn stat(self: *Self, ptr: *anyopaque) File.StatError!File.Stat {
+            const view = self.toView(ptr) orelse unreachable;
+
+            if (config.log) {
+                log.info("stat called, view: {*}", .{view});
+            }
+
+            const entry = view.entry;
+
+            var stat_value: File.Stat = .{
+                .inode = @ptrToInt(view.entry),
+                .atime = entry.atime,
+                .mtime = entry.mtime,
+                .ctime = entry.ctime,
+                .mode = entry.mode,
+
+                .size = undefined,
+                .kind = undefined,
+            };
+
+            switch (entry.subdata) {
+                .dir => |dir| {
+                    stat_value.size = dir.entries.count() * @sizeOf(*Entry); // TODO: What should this be?
+                    stat_value.kind = .Directory;
+                },
+                .file => |file| {
+                    stat_value.size = file.contents.len;
+                    stat_value.kind = .File;
+                },
+            }
+
+            return stat_value;
         }
 
         pub fn closeFile(self: *Self, ptr: *anyopaque) void {
@@ -373,6 +429,16 @@ pub fn FileSystem(comptime config: Config) type {
 
             parent: ?*Entry = null,
 
+            /// time of last access
+            atime: i128 = 0,
+            /// time of last modification
+            mtime: i128 = 0,
+            /// time of last status change
+            ctime: i128 = 0,
+
+            // TODO: Implement proper permissions
+            mode: std.os.mode_t = DEFAULT_PERMISSIONS,
+
             allocator: std.mem.Allocator,
             file_system: *FileSystemType,
 
@@ -394,6 +460,7 @@ pub fn FileSystem(comptime config: Config) type {
                 file_system: *FileSystemType,
                 name: []const u8,
                 contents: []const u8,
+                current_time: i128,
             ) !*Entry {
                 const dupe_name = try allocator.dupe(u8, name);
                 errdefer allocator.free(dupe_name);
@@ -408,13 +475,21 @@ pub fn FileSystem(comptime config: Config) type {
                     .allocator = allocator,
                     .file_system = file_system,
                     .name = dupe_name,
+                    .atime = current_time,
+                    .mtime = current_time,
+                    .ctime = current_time,
                     .subdata = .{ .file = .{ .contents = dupe_content } },
                 };
 
                 return entry;
             }
 
-            fn createDir(allocator: std.mem.Allocator, file_system: *FileSystemType, name: []const u8) !*Entry {
+            fn createDir(
+                allocator: std.mem.Allocator,
+                file_system: *FileSystemType,
+                name: []const u8,
+                current_time: i128,
+            ) !*Entry {
                 const dupe_name = try allocator.dupe(u8, name);
                 errdefer allocator.free(dupe_name);
 
@@ -425,6 +500,9 @@ pub fn FileSystem(comptime config: Config) type {
                     .allocator = allocator,
                     .file_system = file_system,
                     .name = dupe_name,
+                    .atime = current_time,
+                    .mtime = current_time,
+                    .ctime = current_time,
                     .subdata = .{ .dir = .{} },
                 };
 
@@ -450,50 +528,39 @@ pub fn FileSystem(comptime config: Config) type {
                 return false;
             }
 
-            fn setParent(self: *Entry, parent: *Entry) !void {
-                if (self.parent) |old_parent| {
-                    _ = old_parent.decrementReference();
-                } else {
-                    self.incrementReference();
-                }
+            fn addEntry(parent: *Entry, entry: *Entry, current_time: i128) !void {
+                std.debug.assert(parent.subdata == .dir);
 
-                self.parent = parent;
-            }
-
-            /// Returns `true` if the entry has been destroyed
-            fn unsetParent(self: *Entry) bool {
-                if (self.parent) |old_parent| {
-                    _ = old_parent.decrementReference();
-                }
-
-                if (self.decrementReference()) {
-                    return true;
-                }
-
-                self.parent = null;
-                return false;
-            }
-
-            fn addEntry(self: *Entry, entry: *Entry) !void {
-                std.debug.assert(self.subdata == .dir);
-
-                self.incrementReference();
-                errdefer _ = self.decrementReference();
-
-                if (try self.subdata.dir.entries.fetchPut(self.allocator, entry, {})) |_| {
+                if (try parent.subdata.dir.entries.fetchPut(parent.allocator, entry, {})) |_| {
                     return error.DuplicateEntry;
                 }
-                errdefer _ = self.subdata.dir.entries.swapRemove(entry);
 
-                try entry.setParent(self);
+                if (entry.parent) |old_parent| {
+                    old_parent.ctime = current_time;
+                } else {
+                    entry.incrementReference();
+                }
+
+                entry.ctime = current_time;
+
+                entry.parent = parent;
+                parent.ctime = current_time;
             }
 
             /// Returns true if the entry has been destroyed
-            fn removeEntry(self: *Entry, entry: *Entry) bool {
+            fn removeEntry(self: *Entry, entry: *Entry, current_time: i128) bool {
                 std.debug.assert(self.subdata == .dir);
 
-                if (self.subdata.dir.entries.fetchSwapRemove(entry)) |e| {
-                    return e.key.unsetParent();
+                if (self.subdata.dir.entries.fetchSwapRemove(entry)) |_| {
+                    self.ctime = current_time;
+
+                    if (entry.decrementReference()) {
+                        return true;
+                    }
+
+                    entry.ctime = current_time;
+                    entry.parent = null;
+                    return false;
                 }
 
                 return false;

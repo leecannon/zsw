@@ -158,6 +158,17 @@ pub fn Backend(comptime config: Config) type {
             };
         }
 
+        fn statDir(interface: System, dir: Dir) File.StatError!File.Stat {
+            if (!config.file_system) {
+                if (config.fallback_to_host) {
+                    return host_backend.statDir(interface, dir);
+                }
+                @panic("statDir requires file_system capability");
+            }
+
+            return getSelf(interface).file_system.stat(dir.data.custom);
+        }
+
         fn readFile(interface: System, file: File, buffer: []u8) std.os.ReadError!usize {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
@@ -169,11 +180,15 @@ pub fn Backend(comptime config: Config) type {
             return getSelf(interface).file_system.readFile(file.data.custom, buffer);
         }
 
+        fn statFile(interface: System, file: File) File.StatError!File.Stat {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
+                    return host_backend.statFile(interface, file);
                 }
+                @panic("statFile requires file_system capability");
             }
 
+            return getSelf(interface).file_system.stat(file.data.custom);
         }
 
         fn closeFile(interface: System, file: File) void {
@@ -192,7 +207,9 @@ pub fn Backend(comptime config: Config) type {
             .nanoTimestamp = nanoTimestamp,
             .osLinuxGeteuid = osLinuxGeteuid,
             .openFileFromDir = openFileFromDir,
+            .statDir = statDir,
             .readFile = readFile,
+            .statFile = statFile,
             .closeFile = closeFile,
         };
 

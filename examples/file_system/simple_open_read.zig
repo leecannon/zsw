@@ -31,6 +31,10 @@ fn use_system(allocator: std.mem.Allocator, system: zsw.System) !void {
     defer allocator.free(file_in_parent_contents);
 
     std.log.info("{s}", .{file_in_parent_contents});
+
+    const file_in_parent_stat = try file_in_parent.stat();
+
+    std.log.info("{}", .{file_in_parent_stat});
 }
 
 fn createBackend(allocator: std.mem.Allocator) !*BackendType {

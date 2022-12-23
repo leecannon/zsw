@@ -28,12 +28,19 @@ pub fn openFileFromDir(system: System, dir: Dir, sub_path: []const u8, flags: Fi
     };
 }
 
+pub fn statDir(system: System, dir: Dir) File.StatError!File.Stat {
+    _ = system;
+    return dir.data.host.stat();
+}
+
 pub fn readFile(system: System, file: File, buffer: []u8) std.os.ReadError!usize {
     _ = system;
     return file.data.host.read(buffer);
 }
 
+pub fn statFile(system: System, file: File) File.StatError!File.Stat {
     _ = system;
+    return file.data.host.stat();
 }
 
 pub fn closeFile(system: System, file: File) void {
@@ -48,7 +55,9 @@ pub const host_system: System = .{
         .nanoTimestamp = nanoTimestamp,
         .osLinuxGeteuid = osLinuxGeteuid,
         .openFileFromDir = openFileFromDir,
+        .statDir = statDir,
         .readFile = readFile,
+        .statFile = statFile,
         .closeFile = closeFile,
     },
 };

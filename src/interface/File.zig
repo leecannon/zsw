@@ -18,6 +18,13 @@ pub inline fn close(self: File) void {
     return self.system.vtable.closeFile(self.system, self);
 }
 
+pub const Stat = std.fs.File.Stat;
+pub const StatError = std.fs.File.StatError;
+
+pub inline fn stat(self: File) StatError!Stat {
+    return self.system.vtable.statFile(self.system, self);
+}
+
 pub const Reader = std.io.Reader(File, std.os.ReadError, read);
 
 pub fn reader(file: File) Reader {

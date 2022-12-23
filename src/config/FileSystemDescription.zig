@@ -6,10 +6,10 @@ allocator: std.mem.Allocator,
 /// Do not modify directly
 entries: std.ArrayListUnmanaged(*EntryDescription) = .{},
 
-/// Do not modify directly
+/// Do not assign directly
 root: *EntryDescription,
 
-/// Do not modify directly
+/// Do not assign directly
 cwd: *EntryDescription,
 
 pub fn init(allocator: std.mem.Allocator) !*FileSystemDescription {
@@ -58,6 +58,13 @@ pub const EntryDescription = struct {
     file_system_description: *FileSystemDescription,
 
     name: []const u8,
+
+    /// time of last access, if null is set to current time
+    atime: ?i128 = null,
+    /// time of last modification, if null is set to current time
+    mtime: ?i128 = null,
+    /// time of last status change, if null is set to current time
+    ctime: ?i128 = null,
 
     subdata: SubData,
 
