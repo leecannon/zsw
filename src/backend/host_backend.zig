@@ -11,6 +11,16 @@ pub fn cwd(system: System) Dir {
     };
 }
 
+pub fn nanoTimestamp(system: System) i128 {
+    _ = system;
+    return std.time.nanoTimestamp();
+}
+
+pub fn osLinuxGeteuid(system: System) std.os.uid_t {
+    _ = system;
+    return std.os.linux.geteuid();
+}
+
 pub fn openFileFromDir(system: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
     return File{
         .system = system,
@@ -20,7 +30,10 @@ pub fn openFileFromDir(system: System, dir: Dir, sub_path: []const u8, flags: Fi
 
 pub fn readFile(system: System, file: File, buffer: []u8) std.os.ReadError!usize {
     _ = system;
-    return try file.data.host.read(buffer);
+    return file.data.host.read(buffer);
+}
+
+    _ = system;
 }
 
 pub fn closeFile(system: System, file: File) void {
@@ -28,19 +41,15 @@ pub fn closeFile(system: System, file: File) void {
     file.data.host.close();
 }
 
-pub fn osLinuxGeteuid(system: System) std.os.uid_t {
-    _ = system;
-    return std.os.linux.geteuid();
-}
-
 pub const host_system: System = .{
     .ptr = undefined,
     .vtable = &System.VTable{
         .cwd = cwd,
+        .nanoTimestamp = nanoTimestamp,
+        .osLinuxGeteuid = osLinuxGeteuid,
         .openFileFromDir = openFileFromDir,
         .readFile = readFile,
         .closeFile = closeFile,
-        .osLinuxGeteuid = osLinuxGeteuid,
     },
 };
 

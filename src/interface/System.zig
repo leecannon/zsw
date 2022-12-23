@@ -12,6 +12,10 @@ pub inline fn cwd(self: System) Dir {
     return self.vtable.cwd(self);
 }
 
+pub inline fn nanoTimestamp(self: System) i128 {
+    return self.vtable.nanoTimestamp(self);
+}
+
 // TODO: Is providing os specific functionality on the top level like this a good idea?
 // `usingnamespace`, `@compileError`, etc
 pub inline fn geteuid(self: System) std.os.uid_t {
@@ -20,32 +24,17 @@ pub inline fn geteuid(self: System) std.os.uid_t {
 
 pub const VTable = struct {
     // Exposed by `System`
-    cwd: if (builtin.zig_backend == .stage1)
-        fn (ptr: System) Dir
-    else
-        *const fn (ptr: System) Dir,
+    cwd: *const fn (ptr: System) Dir,
+    nanoTimestamp: *const fn (self: System) i128,
 
-    osLinuxGeteuid: if (builtin.zig_backend == .stage1)
-        fn (ptr: System) std.os.uid_t
-    else
-        *const fn (ptr: System) std.os.uid_t,
+    osLinuxGeteuid: *const fn (ptr: System) std.os.uid_t,
 
     // Exposed by `Dir`
-    openFileFromDir: if (builtin.zig_backend == .stage1)
-        fn (ptr: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File
-    else
-        *const fn (ptr: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File,
+    openFileFromDir: *const fn (ptr: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File,
 
     // Exposed by `File`
-    readFile: if (builtin.zig_backend == .stage1)
-        fn (ptr: System, file: File, buffer: []u8) std.os.ReadError!usize
-    else
-        *const fn (ptr: System, file: File, buffer: []u8) std.os.ReadError!usize,
-
-    closeFile: if (builtin.zig_backend == .stage1)
-        fn (ptr: System, file: File) void
-    else
-        *const fn (ptr: System, file: File) void,
+    readFile: *const fn (ptr: System, file: File, buffer: []u8) std.os.ReadError!usize,
+    closeFile: *const fn (ptr: System, file: File) void,
 
     comptime {
         std.testing.refAllDecls(@This());

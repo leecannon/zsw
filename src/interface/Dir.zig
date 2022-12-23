@@ -13,7 +13,7 @@ pub const Data = union {
 };
 
 pub inline fn openFile(self: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
-    return try self.system.vtable.openFileFromDir(self.system, self, sub_path, flags);
+    return self.system.vtable.openFileFromDir(self.system, self, sub_path, flags);
 }
 
 comptime {

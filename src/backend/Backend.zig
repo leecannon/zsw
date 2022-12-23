@@ -7,27 +7,56 @@ const File = @import("../interface/File.zig");
 const Config = @import("../config/Config.zig");
 const FileSystemDescription = @import("../config/FileSystemDescription.zig");
 const LinuxUserGroupDescription = @import("../config/LinuxUserGroupDescription.zig");
+const TimeDescription = @import("../config/TimeDescription.zig");
 
 const FileSystem = @import("FileSystem.zig").FileSystem;
 const LinuxUserGroup = @import("LinuxUserGroup.zig").LinuxUserGroup;
+const Time = @import("Time.zig").Time;
 
 const host_backend = @import("host_backend.zig");
 
 pub fn Backend(comptime config: Config) type {
     return struct {
         allocator: std.mem.Allocator,
-        file_system: *FileSystem(config),
+        file_system: FileSystem(config),
         linux_user_group: LinuxUserGroup(config),
+        time: Time(config),
 
         const log = std.log.scoped(config.logging_scope);
 
         const Self = @This();
 
         /// For information regarding the `description` argument see `Config`
-        pub fn init(allocator: std.mem.Allocator, description: anytype) !Self {
+        pub fn init(allocator: std.mem.Allocator, description: anytype) !*Self {
+            var self: *Self = try allocator.create(Self);
+            errdefer allocator.destroy(self);
+
+            self.allocator = allocator;
+
             const DescriptionType = @TypeOf(description);
 
-            const file_system: *FileSystem(config) = if (config.file_system) blk: {
+            // time must be set before `file_system` as `FileSystem.init` needs to know times
+            if (config.time) {
+                comptime {
+                    const err = "time capability requested without `time` field in `description` with type `TimeDescription`";
+                    if (!@hasField(DescriptionType, "time")) {
+                        @compileError(err);
+                    }
+                    if (@TypeOf(description.time) != *TimeDescription and
+                        @TypeOf(description.time) != *const TimeDescription)
+                    {
+                        @compileError(err);
+                    }
+                }
+
+                const time_desc: *const TimeDescription = &description.time;
+
+                self.time = .{
+                    .nano_timestamp = time_desc.nano_timestamp,
+                };
+            }
+
+            if (config.file_system) {
                 comptime {
                     const err = "file system capability requested without `file_system` field in `description` with type `FileSystemDescription`";
                     if (!@hasField(DescriptionType, "file_system")) {
@@ -40,10 +69,10 @@ pub fn Backend(comptime config: Config) type {
                     }
                 }
 
-                break :blk try FileSystem(config).init(allocator, description.file_system);
-            } else undefined;
+                self.file_system = try FileSystem(config).init(allocator, self.system(), description.file_system);
+            }
 
-            const linux_user_group: LinuxUserGroup(config) = if (config.linux_user_group) blk: {
+            if (config.linux_user_group) {
                 comptime {
                     const err = "linux user group capability requested without `linux_user_group` field in `description` with type `LinuxUserGroupDescription`";
                     if (!@hasField(DescriptionType, "linux_user_group")) {
@@ -57,23 +86,19 @@ pub fn Backend(comptime config: Config) type {
                 const linux_user_group_desc: *const LinuxUserGroupDescription = &description.linux_user_group;
                 log.info("\n\n{}\n\n", .{linux_user_group_desc});
 
-                break :blk LinuxUserGroup(config){
+                self.linux_user_group = .{
                     .euid = linux_user_group_desc.initial_euid,
                 };
-            } else .{};
+            }
 
-            return Self{
-                .allocator = allocator,
-                .file_system = file_system,
-                .linux_user_group = linux_user_group,
-            };
+            return self;
         }
 
         pub fn deinit(self: *Self) void {
             if (config.file_system) {
                 self.file_system.deinit();
             }
-            self.* = undefined;
+            self.allocator.destroy(self);
         }
 
         pub inline fn system(self: *Self) System {
@@ -95,6 +120,28 @@ pub fn Backend(comptime config: Config) type {
                 .system = interface,
                 .data = .{ .custom = getSelf(interface).file_system.cwd() },
             };
+        }
+
+        fn nanoTimestamp(interface: System) i128 {
+            if (!config.time) {
+                if (config.fallback_to_host) {
+                    return host_backend.nanoTimestamp(interface);
+                }
+                @panic("nanoTimestamp requires time capability");
+            }
+
+            return getSelf(interface).time.nanoTimestamp();
+        }
+
+        fn osLinuxGeteuid(interface: System) std.os.uid_t {
+            if (!config.linux_user_group) {
+                if (config.fallback_to_host) {
+                    return host_backend.osLinuxGeteuid(interface);
+                }
+                @panic("osLinuxGeteuid requires file_system capability");
+            }
+
+            return getSelf(interface).linux_user_group.osLinuxGeteuid();
         }
 
         fn openFileFromDir(interface: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
@@ -119,7 +166,14 @@ pub fn Backend(comptime config: Config) type {
                 @panic("readFile requires file_system capability");
             }
 
-            return try getSelf(interface).file_system.readFile(file.data.custom, buffer);
+            return getSelf(interface).file_system.readFile(file.data.custom, buffer);
+        }
+
+            if (!config.file_system) {
+                if (config.fallback_to_host) {
+                }
+            }
+
         }
 
         fn closeFile(interface: System, file: File) void {
@@ -133,23 +187,13 @@ pub fn Backend(comptime config: Config) type {
             getSelf(interface).file_system.closeFile(file.data.custom);
         }
 
-        fn osLinuxGeteuid(interface: System) std.os.uid_t {
-            if (!config.linux_user_group) {
-                if (config.fallback_to_host) {
-                    return host_backend.osLinuxGeteuid(interface);
-                }
-                @panic("osLinuxGeteuid requires file_system capability");
-            }
-
-            return getSelf(interface).linux_user_group.osLinuxGeteuid();
-        }
-
         const vtable: System.VTable = .{
             .cwd = cwd,
+            .nanoTimestamp = nanoTimestamp,
+            .osLinuxGeteuid = osLinuxGeteuid,
             .openFileFromDir = openFileFromDir,
             .readFile = readFile,
             .closeFile = closeFile,
-            .osLinuxGeteuid = osLinuxGeteuid,
         };
 
         inline fn getSelf(interface: System) *Self {

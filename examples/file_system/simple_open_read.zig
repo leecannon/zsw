@@ -33,7 +33,7 @@ fn use_system(allocator: std.mem.Allocator, system: zsw.System) !void {
     std.log.info("{s}", .{file_in_parent_contents});
 }
 
-fn createBackend(allocator: std.mem.Allocator) !BackendType {
+fn createBackend(allocator: std.mem.Allocator) !*BackendType {
     var file_system = try zsw.FileSystemDescription.init(allocator);
     defer file_system.deinit();
 

@@ -2,6 +2,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const is_windows: bool = builtin.os.tag == .windows;
 
+const Backend = @import("Backend.zig");
+
 const System = @import("../interface/System.zig");
 const Dir = @import("../interface/Dir.zig");
 const File = @import("../interface/File.zig");
@@ -14,6 +16,7 @@ pub fn FileSystem(comptime config: Config) type {
 
     return struct {
         allocator: std.mem.Allocator,
+        system: System,
 
         entries: std.AutoHashMapUnmanaged(*Entry, void),
         views: std.AutoHashMapUnmanaged(*View, void),
@@ -30,10 +33,10 @@ pub fn FileSystem(comptime config: Config) type {
 
         // ** INITALIZATION **
 
-        pub fn init(allocator: std.mem.Allocator, fsd: *const FileSystemDescription) !*Self {
-            var self = try allocator.create(Self);
-            self.* = .{
+        pub fn init(allocator: std.mem.Allocator, system: System, fsd: *const FileSystemDescription) !Self {
+            var self: Self = .{
                 .allocator = allocator,
+                .system = system,
                 .entries = .{},
                 .views = .{},
                 .root = undefined,
@@ -86,8 +89,6 @@ pub fn FileSystem(comptime config: Config) type {
                 }
                 self.entries.deinit(self.allocator);
             }
-
-            self.allocator.destroy(self);
         }
 
         fn initAddDirAndRecurse(

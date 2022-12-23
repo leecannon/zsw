@@ -25,7 +25,7 @@ pub fn reader(file: File) Reader {
 }
 
 pub fn read(self: File, buffer: []u8) std.os.ReadError!usize {
-    return try self.system.vtable.readFile(self.system, self, buffer);
+    return self.system.vtable.readFile(self.system, self, buffer);
 }
 
 comptime {
