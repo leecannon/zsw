@@ -33,6 +33,14 @@ pub fn statDir(system: System, dir: Dir) File.StatError!File.Stat {
     return dir.data.host.stat();
 }
 
+pub fn updateTimesDir(system: System, dir: Dir, atime: i128, mtime: i128) File.UpdateTimesError!void {
+    _ = mtime;
+    _ = atime;
+    _ = dir;
+    _ = system;
+    @panic("The Zig std lib does not implement `updateTimes` for directores *yet*"); // TODO
+}
+
 pub fn readFile(system: System, file: File, buffer: []u8) std.os.ReadError!usize {
     _ = system;
     return file.data.host.read(buffer);
@@ -41,6 +49,11 @@ pub fn readFile(system: System, file: File, buffer: []u8) std.os.ReadError!usize
 pub fn statFile(system: System, file: File) File.StatError!File.Stat {
     _ = system;
     return file.data.host.stat();
+}
+
+pub fn updateTimesFile(system: System, file: File, atime: i128, mtime: i128) File.UpdateTimesError!void {
+    _ = system;
+    return file.data.host.updateTimes(atime, mtime);
 }
 
 pub fn closeFile(system: System, file: File) void {
@@ -56,8 +69,10 @@ pub const host_system: System = .{
         .osLinuxGeteuid = osLinuxGeteuid,
         .openFileFromDir = openFileFromDir,
         .statDir = statDir,
+        .updateTimesDir = updateTimesDir,
         .readFile = readFile,
         .statFile = statFile,
+        .updateTimesFile = updateTimesFile,
         .closeFile = closeFile,
     },
 };

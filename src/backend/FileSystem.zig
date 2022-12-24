@@ -407,6 +407,19 @@ pub fn FileSystem(comptime config: Config) type {
 
             return stat_value;
         }
+                
+        pub fn updateTimes(self: *Self, ptr: *anyopaque, atime: i128, mtime: i128) File.UpdateTimesError!void {
+            const view = self.toView(ptr) orelse unreachable;
+
+            if (config.log) {
+                log.info("updateTimes called, view: {*}, atime: {}, mtime: {}", .{view, atime, mtime});
+            }
+
+            const entry = view.entry;
+            
+            entry.atime = atime;
+            entry.mtime = mtime;
+        }
 
         pub fn closeFile(self: *Self, ptr: *anyopaque) void {
             const view = self.toView(ptr) orelse return;

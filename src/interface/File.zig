@@ -25,6 +25,12 @@ pub inline fn stat(self: File) StatError!Stat {
     return self.system.vtable.statFile(self.system, self);
 }
 
+pub const UpdateTimesError = std.fs.File.UpdateTimesError;
+
+pub inline fn updateTimes(self: File, atime: i128, mtime: i128) UpdateTimesError!void {
+    return self.system.vtable.updateTimesFile(self.system, self, atime, mtime);
+}
+
 pub const Reader = std.io.Reader(File, std.os.ReadError, read);
 
 pub fn reader(file: File) Reader {

@@ -32,10 +32,12 @@ pub const VTable = struct {
     // Exposed by `Dir`
     openFileFromDir: *const fn (ptr: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File,
     statDir: *const fn (ptr: System, dir: Dir) File.StatError!File.Stat,
+    updateTimesDir: *const fn (ptr: System, dir: Dir, atime: i128, mtime: i128) File.UpdateTimesError!void,
 
     // Exposed by `File`
     readFile: *const fn (ptr: System, file: File, buffer: []u8) std.os.ReadError!usize,
     statFile: *const fn (ptr: System, file: File) File.StatError!File.Stat,
+    updateTimesFile: *const fn (ptr: System, file: File, atime: i128, mtime: i128) File.UpdateTimesError!void,
     closeFile: *const fn (ptr: System, file: File) void,
 
     comptime {

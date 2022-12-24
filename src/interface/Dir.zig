@@ -20,6 +20,10 @@ pub inline fn stat(self: Dir) File.StatError!File.Stat {
     return self.system.vtable.statDir(self.system, self);
 }
 
+pub inline fn updateTimes(self: Dir, atime: i128, mtime: i128) File.UpdateTimesError!void {
+    return self.system.vtable.updateTimesDir(self.system, self, atime, mtime);
+}
+
 comptime {
     std.testing.refAllDecls(@This());
 }

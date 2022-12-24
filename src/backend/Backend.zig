@@ -169,6 +169,17 @@ pub fn Backend(comptime config: Config) type {
             return getSelf(interface).file_system.stat(dir.data.custom);
         }
 
+        pub fn updateTimesDir(interface: System, dir: Dir, atime: i128, mtime: i128) File.UpdateTimesError!void {
+            if (!config.file_system) {
+                if (config.fallback_to_host) {
+                    return host_backend.updateTimesDir(interface, dir, atime, mtime);
+                }
+                @panic("updateTimesDir requires file_system capability");
+            }
+
+            return getSelf(interface).file_system.updateTimes(dir.data.custom, atime, mtime);
+        }
+
         fn readFile(interface: System, file: File, buffer: []u8) std.os.ReadError!usize {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
@@ -191,6 +202,17 @@ pub fn Backend(comptime config: Config) type {
             return getSelf(interface).file_system.stat(file.data.custom);
         }
 
+        pub fn updateTimesFile(interface: System, file: File, atime: i128, mtime: i128) File.UpdateTimesError!void {
+            if (!config.file_system) {
+                if (config.fallback_to_host) {
+                    return host_backend.updateTimesFile(interface, file, atime, mtime);
+                }
+                @panic("updateTimesFile requires file_system capability");
+            }
+
+            return getSelf(interface).file_system.updateTimes(file.data.custom, atime, mtime);
+        }
+
         fn closeFile(interface: System, file: File) void {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
@@ -208,8 +230,10 @@ pub fn Backend(comptime config: Config) type {
             .osLinuxGeteuid = osLinuxGeteuid,
             .openFileFromDir = openFileFromDir,
             .statDir = statDir,
+            .updateTimesDir = updateTimesDir,
             .readFile = readFile,
             .statFile = statFile,
+            .updateTimesFile = updateTimesFile,
             .closeFile = closeFile,
         };
 
