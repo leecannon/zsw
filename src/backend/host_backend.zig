@@ -28,6 +28,13 @@ pub fn openFileFromDir(system: System, dir: Dir, sub_path: []const u8, flags: Fi
     };
 }
 
+pub fn createFileFromDir(system: System, dir: Dir, sub_path: []const u8, flags: File.CreateFlags) File.OpenError!File {
+    return File{
+        .system = system,
+        .data = .{ .host = try dir.data.host.createFile(sub_path, flags) },
+    };
+}
+
 pub fn statDir(system: System, dir: Dir) File.StatError!File.Stat {
     _ = system;
     return dir.data.host.stat();
@@ -68,6 +75,7 @@ pub const host_system: System = .{
         .nanoTimestamp = nanoTimestamp,
         .osLinuxGeteuid = osLinuxGeteuid,
         .openFileFromDir = openFileFromDir,
+        .createFileFromDir = createFileFromDir,
         .statDir = statDir,
         .updateTimesDir = updateTimesDir,
         .readFile = readFile,

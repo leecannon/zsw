@@ -158,6 +158,20 @@ pub fn Backend(comptime config: Config) type {
             };
         }
 
+        fn createFileFromDir(interface: System, dir: Dir, sub_path: []const u8, flags: File.CreateFlags) File.OpenError!File {
+            if (!config.file_system) {
+                if (config.fallback_to_host) {
+                    return host_backend.createFileFromDir(interface, dir, sub_path, flags);
+                }
+                @panic("createFileFromDir required file_system capability");
+            }
+
+            return File{
+                .system = interface,
+                .data = .{ .custom = try getSelf(interface).file_system.createFileFromDir(dir.data.custom, sub_path, flags) },
+            };
+        }
+
         fn statDir(interface: System, dir: Dir) File.StatError!File.Stat {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
@@ -229,6 +243,7 @@ pub fn Backend(comptime config: Config) type {
             .nanoTimestamp = nanoTimestamp,
             .osLinuxGeteuid = osLinuxGeteuid,
             .openFileFromDir = openFileFromDir,
+            .createFileFromDir = createFileFromDir,
             .statDir = statDir,
             .updateTimesDir = updateTimesDir,
             .readFile = readFile,

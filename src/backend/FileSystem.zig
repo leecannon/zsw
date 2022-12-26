@@ -343,6 +343,65 @@ pub fn FileSystem(comptime config: Config) type {
             return view;
         }
 
+        pub fn createFileFromDir(
+            self: *Self,
+            ptr: *anyopaque,
+            sub_path: []const u8,
+            flags: File.CreateFlags,
+        ) File.OpenError!*anyopaque {
+            if (is_windows) {
+                // TODO: Implement windows
+                @compileError("Windows support is unimplemented");
+            }
+
+            // TODO: Implement support for flags.mode
+            // TODO: Implement support for flags.read
+
+            if (flags.lock != .None) {
+                // TODO: Implement lock
+                @panic("lock is unimplemented");
+            }
+
+            const dir_entry = self.cwdOrEntry(ptr) orelse return File.OpenError.NoDevice;
+
+            if (config.log) {
+                log.debug("createFileFromDir called, entry: {*}, sub_path: \"{s}\", flags: {}", .{ dir_entry, sub_path, flags });
+            }
+
+            const search_root = self.resolveSearchRootFromPath(dir_entry, sub_path);
+
+            if (config.log) {
+                log.debug("initial search entry: {*}, name: \"{s}\"", .{ search_root, search_root.name });
+            }
+
+            const entry = blk: {
+                if (try self.resolveEntry(search_root, sub_path)) |entry| {
+                    // File already exists
+                    if (flags.exclusive) {
+                        return File.OpenError.PathAlreadyExists;
+                    }
+
+                    if (flags.truncate and entry.subdata == .file) {
+                        // TODO: Check mode
+                        entry.subdata.file.contents.items.len = 0;
+                    }
+
+                    break :blk entry;
+                }
+
+                @panic("TODO");
+                // File doesn't exist
+            };
+
+            const view = self.addView(entry) catch return error.SystemResources;
+
+            if (config.log) {
+                log.debug("opened view, view: {*}, entry: {*}, entry name: \"{s}\"", .{ view, entry, entry.name });
+            }
+
+            return view;
+        }
+
         pub fn readFile(self: *Self, ptr: *anyopaque, buffer: []u8) std.os.ReadError!usize {
             const view = self.toView(ptr) orelse return error.NotOpenForReading;
 
@@ -360,10 +419,12 @@ pub fn FileSystem(comptime config: Config) type {
                     return std.os.ReadError.IsDir;
                 },
                 .file => |file| {
-                    const size = std.math.min(buffer.len, file.contents.len - view.position);
+                    const slice = file.contents.items;
+
+                    const size = std.math.min(buffer.len, slice.len - view.position);
                     const end = view.position + size;
 
-                    std.mem.copy(u8, buffer, file.contents[view.position..end]);
+                    std.mem.copy(u8, buffer, slice[view.position..end]);
 
                     view.position = end;
 
@@ -400,23 +461,23 @@ pub fn FileSystem(comptime config: Config) type {
                     stat_value.kind = .Directory;
                 },
                 .file => |file| {
-                    stat_value.size = file.contents.len;
+                    stat_value.size = file.contents.items.len;
                     stat_value.kind = .File;
                 },
             }
 
             return stat_value;
         }
-                
+
         pub fn updateTimes(self: *Self, ptr: *anyopaque, atime: i128, mtime: i128) File.UpdateTimesError!void {
             const view = self.toView(ptr) orelse unreachable;
 
             if (config.log) {
-                log.info("updateTimes called, view: {*}, atime: {}, mtime: {}", .{view, atime, mtime});
+                log.info("updateTimes called, view: {*}, atime: {}, mtime: {}", .{ view, atime, mtime });
             }
 
             const entry = view.entry;
-            
+
             entry.atime = atime;
             entry.mtime = mtime;
         }
@@ -460,7 +521,7 @@ pub fn FileSystem(comptime config: Config) type {
                 dir: DirData,
 
                 const FileData = struct {
-                    contents: []const u8,
+                    contents: std.ArrayListUnmanaged(u8),
                 };
 
                 const DirData = struct {
@@ -478,8 +539,10 @@ pub fn FileSystem(comptime config: Config) type {
                 const dupe_name = try allocator.dupe(u8, name);
                 errdefer allocator.free(dupe_name);
 
-                const dupe_content = try allocator.dupe(u8, contents);
-                errdefer allocator.free(dupe_content);
+                var new_contents = try std.ArrayListUnmanaged(u8).initCapacity(allocator, contents.len);
+                errdefer new_contents.deinit(allocator);
+
+                new_contents.insertSlice(allocator, 0, contents) catch unreachable;
 
                 var entry = try allocator.create(Entry);
                 errdefer allocator.destroy(entry);
@@ -491,7 +554,7 @@ pub fn FileSystem(comptime config: Config) type {
                     .atime = current_time,
                     .mtime = current_time,
                     .ctime = current_time,
-                    .subdata = .{ .file = .{ .contents = dupe_content } },
+                    .subdata = .{ .file = .{ .contents = new_contents } },
                 };
 
                 return entry;
@@ -582,7 +645,7 @@ pub fn FileSystem(comptime config: Config) type {
             fn deinit(self: *Entry) void {
                 self.allocator.free(self.name);
                 switch (self.subdata) {
-                    .file => |file| self.allocator.free(file.contents),
+                    .file => |*file| file.contents.deinit(self.allocator),
                     .dir => |*dir| dir.entries.deinit(self.allocator),
                 }
                 self.allocator.destroy(self);

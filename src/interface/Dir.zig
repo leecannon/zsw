@@ -16,6 +16,10 @@ pub inline fn openFile(self: Dir, sub_path: []const u8, flags: File.OpenFlags) F
     return self.system.vtable.openFileFromDir(self.system, self, sub_path, flags);
 }
 
+pub inline fn createFile(self: Dir, sub_path: []const u8, flags: File.CreateFlags) File.OpenError!File {
+    return self.system.vtable.createFileFromDir(self.system, self, sub_path, flags);
+}
+
 pub inline fn stat(self: Dir) File.StatError!File.Stat {
     return self.system.vtable.statDir(self.system, self);
 }

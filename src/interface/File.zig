@@ -14,6 +14,8 @@ pub const Data = union {
 pub const OpenFlags = std.fs.File.OpenFlags;
 pub const OpenError = std.fs.File.OpenError;
 
+pub const CreateFlags = std.fs.File.CreateFlags;
+
 pub inline fn close(self: File) void {
     return self.system.vtable.closeFile(self.system, self);
 }
