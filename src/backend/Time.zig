@@ -16,7 +16,7 @@ pub fn Time(comptime config: Config) type {
             const value = @atomicLoad(i128, self.nano_timestamp, .Acquire);
 
             if (config.log) {
-                log.info("nanoTimestamp called, returning {}", .{value});
+                log.debug("nanoTimestamp called, returning {}", .{value});
             }
 
             return value;

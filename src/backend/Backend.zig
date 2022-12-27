@@ -84,7 +84,6 @@ pub fn Backend(comptime config: Config) type {
                 }
 
                 const linux_user_group_desc: *const LinuxUserGroupDescription = &description.linux_user_group;
-                log.info("\n\n{}\n\n", .{linux_user_group_desc});
 
                 self.linux_user_group = .{
                     .euid = linux_user_group_desc.initial_euid,

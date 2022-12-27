@@ -289,7 +289,7 @@ pub fn FileSystem(comptime config: Config) type {
             _ = self;
 
             if (config.log) {
-                log.info("cwd called", .{});
+                log.debug("cwd called", .{});
             }
 
             return CWD;
@@ -323,7 +323,7 @@ pub fn FileSystem(comptime config: Config) type {
             const dir_entry = self.cwdOrEntry(ptr) orelse return File.OpenError.NoDevice;
 
             if (config.log) {
-                log.info("openFileFromDir called, entry: {*}, sub_path: \"{s}\", flags: {}", .{ dir_entry, sub_path, flags });
+                log.debug("openFileFromDir called, entry: {*}, sub_path: \"{s}\", flags: {}", .{ dir_entry, sub_path, flags });
             }
 
             const search_root = self.resolveSearchRootFromPath(dir_entry, sub_path);
@@ -406,7 +406,7 @@ pub fn FileSystem(comptime config: Config) type {
             const view = self.toView(ptr) orelse return error.NotOpenForReading;
 
             if (config.log) {
-                log.info("readFile called, view: {*}, buffer len: {}", .{ view, buffer.len });
+                log.debug("readFile called, view: {*}, buffer len: {}", .{ view, buffer.len });
             }
 
             const entry = view.entry;
@@ -439,7 +439,7 @@ pub fn FileSystem(comptime config: Config) type {
             const view = self.toView(ptr) orelse unreachable;
 
             if (config.log) {
-                log.info("stat called, view: {*}", .{view});
+                log.debug("stat called, view: {*}", .{view});
             }
 
             const entry = view.entry;
@@ -473,7 +473,7 @@ pub fn FileSystem(comptime config: Config) type {
             const view = self.toView(ptr) orelse unreachable;
 
             if (config.log) {
-                log.info("updateTimes called, view: {*}, atime: {}, mtime: {}", .{ view, atime, mtime });
+                log.debug("updateTimes called, view: {*}, atime: {}, mtime: {}", .{ view, atime, mtime });
             }
 
             const entry = view.entry;
@@ -486,7 +486,7 @@ pub fn FileSystem(comptime config: Config) type {
             const view = self.toView(ptr) orelse return;
 
             if (config.log) {
-                log.info("closeFile called, view: {*}", .{view});
+                log.debug("closeFile called, view: {*}", .{view});
             }
 
             if (config.log) {

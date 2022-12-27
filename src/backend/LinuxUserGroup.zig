@@ -13,7 +13,7 @@ pub fn LinuxUserGroup(comptime config: Config) type {
 
         pub fn osLinuxGeteuid(self: *Self) std.os.uid_t {
             if (config.log) {
-                log.info("osLinuxGeteuid called, returning {}", .{self.euid});
+                log.debug("osLinuxGeteuid called, returning {}", .{self.euid});
             }
 
             return self.euid;
