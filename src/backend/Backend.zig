@@ -42,9 +42,7 @@ pub fn Backend(comptime config: Config) type {
                     if (!@hasField(DescriptionType, "time")) {
                         @compileError(err);
                     }
-                    if (@TypeOf(description.time) != *TimeDescription and
-                        @TypeOf(description.time) != *const TimeDescription)
-                    {
+                    if (@TypeOf(description.time) != TimeDescription) {
                         @compileError(err);
                     }
                 }
