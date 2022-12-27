@@ -182,7 +182,7 @@ pub fn Backend(comptime config: Config) type {
             return getSelf(interface).file_system.stat(dir.data.custom);
         }
 
-        pub fn updateTimesDir(interface: System, dir: Dir, atime: i128, mtime: i128) File.UpdateTimesError!void {
+        fn updateTimesDir(interface: System, dir: Dir, atime: i128, mtime: i128) File.UpdateTimesError!void {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
                     return host_backend.updateTimesDir(interface, dir, atime, mtime);
@@ -215,7 +215,7 @@ pub fn Backend(comptime config: Config) type {
             return getSelf(interface).file_system.stat(file.data.custom);
         }
 
-        pub fn updateTimesFile(interface: System, file: File, atime: i128, mtime: i128) File.UpdateTimesError!void {
+        fn updateTimesFile(interface: System, file: File, atime: i128, mtime: i128) File.UpdateTimesError!void {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
                     return host_backend.updateTimesFile(interface, file, atime, mtime);
