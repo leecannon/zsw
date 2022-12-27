@@ -5,6 +5,7 @@ const std = @import("std");
 pub const Config = @import("config/Config.zig");
 pub const FileSystemDescription = @import("config/FileSystemDescription.zig");
 pub const LinuxUserGroupDescription = @import("config/LinuxUserGroupDescription.zig");
+pub const TimeDescription = @import("config/TimeDescription.zig");
 
 // ** CUSTOM BACKEND
 
