@@ -27,7 +27,7 @@ pub fn Backend(comptime config: Config) type {
         const Self = @This();
 
         /// For information regarding the `description` argument see `Config`
-        pub fn init(allocator: std.mem.Allocator, description: anytype) !*Self {
+        pub fn create(allocator: std.mem.Allocator, description: anytype) !*Self {
             var self: *Self = try allocator.create(Self);
             errdefer allocator.destroy(self);
 
@@ -67,7 +67,7 @@ pub fn Backend(comptime config: Config) type {
                     }
                 }
 
-                self.file_system = try FileSystem(config).init(allocator, self.system(), description.file_system);
+                self.file_system = try FileSystem(config).create(allocator, self.system(), description.file_system);
             }
 
             if (config.linux_user_group) {
@@ -91,17 +91,17 @@ pub fn Backend(comptime config: Config) type {
             return self;
         }
 
-        pub fn deinit(self: *Self) void {
+        pub fn destroy(self: *Self) void {
             if (config.file_system) {
-                self.file_system.deinit();
+                self.file_system.destroy();
             }
             self.allocator.destroy(self);
         }
 
         pub inline fn system(self: *Self) System {
             return .{
-                .ptr = self,
-                .vtable = &vtable,
+                ._ptr = self,
+                ._vtable = &vtable,
             };
         }
 
@@ -114,8 +114,8 @@ pub fn Backend(comptime config: Config) type {
             }
 
             return .{
-                .system = interface,
-                .data = .{ .custom = getSelf(interface).file_system.cwd() },
+                ._system = interface,
+                ._data = .{ .custom = getSelf(interface).file_system.cwd() },
             };
         }
 
@@ -141,7 +141,12 @@ pub fn Backend(comptime config: Config) type {
             return getSelf(interface).linux_user_group.osLinuxGeteuid();
         }
 
-        fn openFileFromDir(interface: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
+        fn openFileFromDir(
+            interface: System,
+            dir: Dir,
+            sub_path: []const u8,
+            flags: File.OpenFlags,
+        ) File.OpenError!File {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
                     return host_backend.openFileFromDir(interface, dir, sub_path, flags);
@@ -149,13 +154,24 @@ pub fn Backend(comptime config: Config) type {
                 @panic("openFileFromDir requires file_system capability");
             }
 
-            return File{
-                .system = interface,
-                .data = .{ .custom = try getSelf(interface).file_system.openFileFromDir(dir.data.custom, sub_path, flags) },
+            return .{
+                ._system = interface,
+                ._data = .{
+                    .custom = try getSelf(interface).file_system.openFileFromDir(
+                        dir._data.custom,
+                        sub_path,
+                        flags,
+                    ),
+                },
             };
         }
 
-        fn createFileFromDir(interface: System, dir: Dir, sub_path: []const u8, flags: File.CreateFlags) File.OpenError!File {
+        fn createFileFromDir(
+            interface: System,
+            dir: Dir,
+            sub_path: []const u8,
+            flags: File.CreateFlags,
+        ) File.OpenError!File {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
                     return host_backend.createFileFromDir(interface, dir, sub_path, flags);
@@ -163,9 +179,15 @@ pub fn Backend(comptime config: Config) type {
                 @panic("createFileFromDir required file_system capability");
             }
 
-            return File{
-                .system = interface,
-                .data = .{ .custom = try getSelf(interface).file_system.createFileFromDir(dir.data.custom, sub_path, flags) },
+            return .{
+                ._system = interface,
+                ._data = .{
+                    .custom = try getSelf(interface).file_system.createFileFromDir(
+                        dir._data.custom,
+                        sub_path,
+                        flags,
+                    ),
+                },
             };
         }
 
@@ -177,10 +199,15 @@ pub fn Backend(comptime config: Config) type {
                 @panic("statDir requires file_system capability");
             }
 
-            return getSelf(interface).file_system.stat(dir.data.custom);
+            return getSelf(interface).file_system.stat(dir._data.custom);
         }
 
-        fn updateTimesDir(interface: System, dir: Dir, atime: i128, mtime: i128) File.UpdateTimesError!void {
+        fn updateTimesDir(
+            interface: System,
+            dir: Dir,
+            atime: i128,
+            mtime: i128,
+        ) File.UpdateTimesError!void {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
                     return host_backend.updateTimesDir(interface, dir, atime, mtime);
@@ -188,7 +215,7 @@ pub fn Backend(comptime config: Config) type {
                 @panic("updateTimesDir requires file_system capability");
             }
 
-            return getSelf(interface).file_system.updateTimes(dir.data.custom, atime, mtime);
+            return getSelf(interface).file_system.updateTimes(dir._data.custom, atime, mtime);
         }
 
         fn readFile(interface: System, file: File, buffer: []u8) std.os.ReadError!usize {
@@ -199,7 +226,7 @@ pub fn Backend(comptime config: Config) type {
                 @panic("readFile requires file_system capability");
             }
 
-            return getSelf(interface).file_system.readFile(file.data.custom, buffer);
+            return getSelf(interface).file_system.readFile(file._data.custom, buffer);
         }
 
         fn statFile(interface: System, file: File) File.StatError!File.Stat {
@@ -210,10 +237,15 @@ pub fn Backend(comptime config: Config) type {
                 @panic("statFile requires file_system capability");
             }
 
-            return getSelf(interface).file_system.stat(file.data.custom);
+            return getSelf(interface).file_system.stat(file._data.custom);
         }
 
-        fn updateTimesFile(interface: System, file: File, atime: i128, mtime: i128) File.UpdateTimesError!void {
+        fn updateTimesFile(
+            interface: System,
+            file: File,
+            atime: i128,
+            mtime: i128,
+        ) File.UpdateTimesError!void {
             if (!config.file_system) {
                 if (config.fallback_to_host) {
                     return host_backend.updateTimesFile(interface, file, atime, mtime);
@@ -221,7 +253,7 @@ pub fn Backend(comptime config: Config) type {
                 @panic("updateTimesFile requires file_system capability");
             }
 
-            return getSelf(interface).file_system.updateTimes(file.data.custom, atime, mtime);
+            return getSelf(interface).file_system.updateTimes(file._data.custom, atime, mtime);
         }
 
         fn closeFile(interface: System, file: File) void {
@@ -232,7 +264,7 @@ pub fn Backend(comptime config: Config) type {
                 @panic("closeFile requires file_system capability");
             }
 
-            getSelf(interface).file_system.closeFile(file.data.custom);
+            getSelf(interface).file_system.closeFile(file._data.custom);
         }
 
         const vtable: System.VTable = .{
@@ -250,7 +282,7 @@ pub fn Backend(comptime config: Config) type {
         };
 
         inline fn getSelf(interface: System) *Self {
-            return @ptrCast(*Self, @alignCast(@alignOf(Self), interface.ptr));
+            return @ptrCast(*Self, @alignCast(@alignOf(Self), interface._ptr));
         }
 
         comptime {

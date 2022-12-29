@@ -5,21 +5,30 @@ const File = @import("File.zig");
 const builtin = @import("builtin");
 const System = @This();
 
-ptr: *anyopaque,
-vtable: *const VTable,
+_ptr: *anyopaque,
+_vtable: *const VTable,
 
+/// Returns a handle to the current working directory
+///
+/// See `std.fs.cwd`
 pub inline fn cwd(self: System) Dir {
-    return self.vtable.cwd(self);
+    return self._vtable.cwd(self);
 }
 
+/// Get a calendar timestamp, in nanoseconds, relative to UTC 1970-01-01.
+///
+/// See `std.time.nanoTimestamp`
 pub inline fn nanoTimestamp(self: System) i128 {
-    return self.vtable.nanoTimestamp(self);
+    return self._vtable.nanoTimestamp(self);
 }
 
-// TODO: Is providing os specific functionality on the top level like this a good idea?
-// `usingnamespace`, `@compileError`, etc
+/// Get the current effective user id.
+///
+/// See `std.os.linux.geteuid`
 pub inline fn geteuid(self: System) std.os.uid_t {
-    return self.vtable.osLinuxGeteuid(self);
+    // TODO: Is providing os specific functionality on the top level like this a good idea?
+    // `usingnamespace`, `@compileError`, etc
+    return self._vtable.osLinuxGeteuid(self);
 }
 
 pub const VTable = struct {

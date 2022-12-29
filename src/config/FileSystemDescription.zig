@@ -3,16 +3,18 @@ const FileSystemDescription = @This();
 
 allocator: std.mem.Allocator,
 
-/// Do not modify directly
+/// This is only used to keep hold of all the created entries for them to be freed.
 entries: std.ArrayListUnmanaged(*EntryDescription) = .{},
 
-/// Do not assign directly
+/// Do not assign directly.
 root: *EntryDescription,
 
-/// Do not assign directly
+/// Do not assign directly.
 cwd: *EntryDescription,
 
-pub fn init(allocator: std.mem.Allocator) !*FileSystemDescription {
+/// Create a new file system description containing only a single entry description of a directory which is set
+/// as the root entry and current working directory.
+pub fn create(allocator: std.mem.Allocator) !*FileSystemDescription {
     var fs_desc = try allocator.create(FileSystemDescription);
     errdefer allocator.destroy(fs_desc);
 
@@ -39,33 +41,39 @@ pub fn init(allocator: std.mem.Allocator) !*FileSystemDescription {
     return fs_desc;
 }
 
-pub fn deinit(self: *FileSystemDescription) void {
+pub fn destroy(self: *FileSystemDescription) void {
     for (self.entries.items) |entry| entry.deinit();
     self.entries.deinit(self.allocator);
     self.allocator.destroy(self);
 }
 
+/// Get the current working directory.
 pub fn getCwd(self: *const FileSystemDescription) *EntryDescription {
     return self.cwd;
 }
 
+/// Set the current working directory.
+/// `entry` must be a directory.
 pub fn setCwd(self: *FileSystemDescription, entry: *EntryDescription) void {
-    std.debug.assert(entry.subdata == .dir);
+    std.debug.assert(entry.subdata == .dir); // cwd must be a directory
     self.cwd = entry;
 }
 
+/// Describes an entry in the file system description.
+/// Either a file or a directory.
 pub const EntryDescription = struct {
     file_system_description: *FileSystemDescription,
 
     name: []const u8,
 
-    /// time of last access, if null is set to current time
+    /// time of last access, if null is set to current time at construction
     atime: ?i128 = null,
-    /// time of last modification, if null is set to current time
+    /// time of last modification, if null is set to current time at construction
     mtime: ?i128 = null,
-    /// time of last status change, if null is set to current time
+    /// time of last status change, if null is set to current time at construction
     ctime: ?i128 = null,
 
+    /// contains data specific to different entry types
     subdata: SubData,
 
     pub const SubData = union(enum) {
@@ -77,14 +85,12 @@ pub const EntryDescription = struct {
         };
 
         pub const DirData = struct {
-            entries: std.ArrayListUnmanaged(*EntryDescription) = .{},
+            entries: std.StringArrayHashMapUnmanaged(*EntryDescription) = .{},
         };
-
-        comptime {
-            std.testing.refAllDecls(@This());
-        }
     };
 
+    /// Add a file entry description to this directory entry description.
+    /// `self` must be a directory entry description.
     pub fn addFile(self: *EntryDescription, name: []const u8, content: []const u8) !void {
         std.debug.assert(self.subdata == .dir);
         const allocator = self.file_system_description.allocator;
@@ -104,12 +110,17 @@ pub const EntryDescription = struct {
             .subdata = .{ .file = .{ .contents = duped_content } },
         };
 
-        try self.subdata.dir.entries.append(allocator, file);
+        const result = try self.subdata.dir.entries.getOrPut(allocator, duped_name);
+        if (result.found_existing) return error.DuplicateEntryName;
+
+        result.value_ptr.* = file;
         errdefer _ = self.subdata.dir.entries.pop();
 
         try self.file_system_description.entries.append(allocator, file);
     }
 
+    /// Add a directory entry description to this directory entry description.
+    /// `self` must be a directory entry description.
     pub fn addDirectory(self: *EntryDescription, name: []const u8) !*EntryDescription {
         std.debug.assert(self.subdata == .dir);
         const allocator = self.file_system_description.allocator;
@@ -126,7 +137,10 @@ pub const EntryDescription = struct {
             .subdata = .{ .dir = .{} },
         };
 
-        try self.subdata.dir.entries.append(allocator, dir);
+        const result = try self.subdata.dir.entries.getOrPut(allocator, duped_name);
+        if (result.found_existing) return error.DuplicateEntryName;
+
+        result.value_ptr.* = dir;
         errdefer _ = self.subdata.dir.entries.pop();
 
         try self.file_system_description.entries.append(allocator, dir);
@@ -137,12 +151,12 @@ pub const EntryDescription = struct {
     fn deinit(self: *EntryDescription) void {
         const allocator = self.file_system_description.allocator;
 
-        allocator.free(self.name);
-
         switch (self.subdata) {
             .file => |file| allocator.free(file.contents),
             .dir => |*dir| dir.entries.deinit(allocator),
         }
+
+        allocator.free(self.name);
 
         allocator.destroy(self);
     }

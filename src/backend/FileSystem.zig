@@ -44,7 +44,7 @@ pub fn FileSystem(comptime config: Config) type {
 
         // ** INITALIZATION **
 
-        pub fn init(allocator: std.mem.Allocator, system: System, fsd: *const FileSystemDescription) !Self {
+        pub fn create(allocator: std.mem.Allocator, system: System, fsd: *const FileSystemDescription) !Self {
             var self: Self = .{
                 .allocator = allocator,
                 .system = system,
@@ -53,7 +53,7 @@ pub fn FileSystem(comptime config: Config) type {
                 .root = undefined,
                 .cwd_entry = undefined,
             };
-            errdefer self.deinit();
+            errdefer self.destroy();
 
             try self.entries.ensureTotalCapacity(allocator, @intCast(u32, fsd.entries.items.len));
 
@@ -81,15 +81,15 @@ pub fn FileSystem(comptime config: Config) type {
             return self;
         }
 
-        pub fn deinit(self: *Self) void {
+        pub fn destroy(self: *Self) void {
             if (config.log) {
-                log.debug("deinitializing FileSystem", .{});
+                log.debug("destroying FileSystem", .{});
             }
 
             {
                 var iter = self.views.keyIterator();
                 while (iter.next()) |view| {
-                    view.*.deinit();
+                    view.*.destroy();
                 }
                 self.views.deinit(self.allocator);
             }
@@ -97,7 +97,7 @@ pub fn FileSystem(comptime config: Config) type {
             {
                 var iter = self.entries.keyIterator();
                 while (iter.next()) |entry| {
-                    entry.*.deinit();
+                    entry.*.destroy();
                 }
                 self.entries.deinit(self.allocator);
             }
@@ -119,7 +119,7 @@ pub fn FileSystem(comptime config: Config) type {
             if (opt_root.* == null) opt_root.* = dir_entry;
             if (opt_cwd_entry.* == null and current_dir == ptr_to_inital_cwd) opt_cwd_entry.* = dir_entry;
 
-            for (current_dir.subdata.dir.entries.items) |entry| {
+            for (current_dir.subdata.dir.entries.values()) |entry| {
                 const new_entry: *Entry = switch (entry.subdata) {
                     .file => |file| try self.addFileEntry(entry.name, file.contents, current_time),
                     .dir => try self.initAddDirAndRecurse(
@@ -140,24 +140,27 @@ pub fn FileSystem(comptime config: Config) type {
 
         // ** INTERNAL API
 
+        /// Create a file entry and add it to the `entries` hash map
         fn addFileEntry(self: *Self, name: []const u8, contents: []const u8, current_time: i128) !*Entry {
             const entry = try Entry.createFile(self.allocator, self, name, contents, current_time);
-            errdefer entry.deinit();
+            errdefer entry.destroy();
 
             try self.entries.putNoClobber(self.allocator, entry, {});
 
             return entry;
         }
 
+        /// Create a dir entry and add it to the `entries` hash map
         fn addDirEntry(self: *Self, name: []const u8, current_time: i128) !*Entry {
             const entry = try Entry.createDir(self.allocator, self, name, current_time);
-            errdefer entry.deinit();
+            errdefer entry.destroy();
 
             try self.entries.putNoClobber(self.allocator, entry, {});
 
             return entry;
         }
 
+        /// Add a view to the given entry
         fn addView(self: *Self, entry: *Entry) !*View {
             entry.incrementReference();
             errdefer _ = entry.decrementReference();
@@ -175,22 +178,26 @@ pub fn FileSystem(comptime config: Config) type {
             return view;
         }
 
+        /// Remove a view from the given entry
         fn removeView(self: *Self, view: *View) void {
             _ = view.entry.decrementReference();
             _ = self.views.remove(view);
-            view.deinit();
+            view.destroy();
         }
 
+        /// Set the current working directory
         fn setCwd(self: *Self, entry: *Entry, dereference_old_cwd: bool) !void {
             entry.incrementReference();
             if (dereference_old_cwd) _ = self.cwd_entry.decrementReference();
             self.cwd_entry = entry;
         }
 
+        /// Check if the given pointer is the current working directory
         inline fn isCwd(ptr: *anyopaque) bool {
             return CWD == ptr;
         }
 
+        /// Cast the given `ptr` to a view if it is one.
         inline fn toView(self: *Self, ptr: *anyopaque) ?*View {
             const view = @ptrCast(*View, @alignCast(@alignOf(View), ptr));
             if (self.views.contains(view)) {
@@ -199,16 +206,19 @@ pub fn FileSystem(comptime config: Config) type {
             return null;
         }
 
+        /// Return the entry associated with the given view, if there is one.
         fn cwdOrEntry(self: *Self, ptr: *anyopaque) ?*Entry {
             if (isCwd(ptr)) return self.cwd_entry;
             if (self.toView(ptr)) |v| return v.entry;
             return null;
         }
 
+        /// Returns the search root associated with the given path
         fn resolveSearchRootFromPath(self: *Self, possible_parent: *Entry, path: []const u8) *Entry {
             return if (std.fs.path.isAbsolute(path)) self.root else possible_parent;
         }
 
+        /// Searches from the search root for the entry specified by the given path
         fn resolveEntry(self: *Self, search_root: *Entry, path: []const u8) !?*Entry {
             var entry: *Entry = undefined;
             var search_entry = search_root;
@@ -597,13 +607,15 @@ pub fn FileSystem(comptime config: Config) type {
                     if (config.log) {
                         log.debug("entry {*} reference count reached zero, entry name: \"{s}\"", .{ self, self.name });
                     }
-                    self.deinit();
+                    self.destroy();
                     return true;
                 }
 
                 return false;
             }
 
+            /// Add an entry to the parent entry.
+            /// The parent entry must be a directory.
             fn addEntry(parent: *Entry, entry: *Entry, current_time: i128) !void {
                 std.debug.assert(parent.subdata == .dir);
 
@@ -623,6 +635,8 @@ pub fn FileSystem(comptime config: Config) type {
                 parent.ctime = current_time;
             }
 
+            /// Remove an entry from the given entry
+            /// `self` must be a directory
             /// Returns true if the entry has been destroyed
             fn removeEntry(self: *Entry, entry: *Entry, current_time: i128) bool {
                 std.debug.assert(self.subdata == .dir);
@@ -642,7 +656,7 @@ pub fn FileSystem(comptime config: Config) type {
                 return false;
             }
 
-            fn deinit(self: *Entry) void {
+            fn destroy(self: *Entry) void {
                 self.allocator.free(self.name);
                 switch (self.subdata) {
                     .file => |*file| file.contents.deinit(self.allocator),
@@ -662,7 +676,7 @@ pub fn FileSystem(comptime config: Config) type {
 
             file_system: *FileSystemType,
 
-            pub fn deinit(self: *View) void {
+            pub fn destroy(self: *View) void {
                 self.file_system.allocator.destroy(self);
             }
 

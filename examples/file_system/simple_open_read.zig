@@ -8,7 +8,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     var backend = try createBackend(allocator);
-    defer backend.deinit();
+    defer backend.destroy();
 
     try use_system(allocator, backend.system());
 }
@@ -38,8 +38,8 @@ fn use_system(allocator: std.mem.Allocator, system: zsw.System) !void {
 }
 
 fn createBackend(allocator: std.mem.Allocator) !*BackendType {
-    var file_system = try zsw.FileSystemDescription.init(allocator);
-    defer file_system.deinit();
+    var file_system = try zsw.FileSystemDescription.create(allocator);
+    defer file_system.destroy();
 
     try file_system.root.addFile("file_in_root", "this is the contents of file in root");
 
@@ -48,7 +48,7 @@ fn createBackend(allocator: std.mem.Allocator) !*BackendType {
 
     file_system.setCwd(dir_in_root);
 
-    return try BackendType.init(allocator, .{ .file_system = file_system });
+    return try BackendType.create(allocator, .{ .file_system = file_system });
 }
 
 comptime {

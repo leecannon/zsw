@@ -4,43 +4,65 @@ const System = @import("../interface/System.zig");
 const Dir = @import("../interface/Dir.zig");
 const File = @import("../interface/File.zig");
 
+/// See `std.fs.cwd`
 pub fn cwd(system: System) Dir {
     return .{
-        .system = system,
-        .data = .{ .host = std.fs.cwd() },
+        ._system = system,
+        ._data = .{ .host = std.fs.cwd() },
     };
 }
 
+/// See `std.time.nanoTimestamp`
 pub fn nanoTimestamp(system: System) i128 {
     _ = system;
     return std.time.nanoTimestamp();
 }
 
+/// See `std.os.linux.geteuid`
 pub fn osLinuxGeteuid(system: System) std.os.uid_t {
     _ = system;
     return std.os.linux.geteuid();
 }
 
-pub fn openFileFromDir(system: System, dir: Dir, sub_path: []const u8, flags: File.OpenFlags) File.OpenError!File {
-    return File{
-        .system = system,
-        .data = .{ .host = try dir.data.host.openFile(sub_path, flags) },
+/// See `std.fs.Dir.openFile`
+pub fn openFileFromDir(
+    system: System,
+    dir: Dir,
+    sub_path: []const u8,
+    flags: File.OpenFlags,
+) File.OpenError!File {
+    return .{
+        ._system = system,
+        ._data = .{ .host = try dir._data.host.openFile(sub_path, flags) },
     };
 }
 
-pub fn createFileFromDir(system: System, dir: Dir, sub_path: []const u8, flags: File.CreateFlags) File.OpenError!File {
-    return File{
-        .system = system,
-        .data = .{ .host = try dir.data.host.createFile(sub_path, flags) },
+/// See `std.fs.Dir.createFile`
+pub fn createFileFromDir(
+    system: System,
+    dir: Dir,
+    sub_path: []const u8,
+    flags: File.CreateFlags,
+) File.OpenError!File {
+    return .{
+        ._system = system,
+        ._data = .{ .host = try dir._data.host.createFile(sub_path, flags) },
     };
 }
 
+/// See `std.fs.Dir.stat`
 pub fn statDir(system: System, dir: Dir) File.StatError!File.Stat {
     _ = system;
-    return dir.data.host.stat();
+    return dir._data.host.stat();
 }
 
-pub fn updateTimesDir(system: System, dir: Dir, atime: i128, mtime: i128) File.UpdateTimesError!void {
+/// Not implemented by the zig std lib
+pub fn updateTimesDir(
+    system: System,
+    dir: Dir,
+    atime: i128,
+    mtime: i128,
+) File.UpdateTimesError!void {
     _ = mtime;
     _ = atime;
     _ = dir;
@@ -48,29 +70,38 @@ pub fn updateTimesDir(system: System, dir: Dir, atime: i128, mtime: i128) File.U
     @panic("The Zig std lib does not implement `updateTimes` for directores *yet*"); // TODO
 }
 
+/// See `std.fs.File.read`
 pub fn readFile(system: System, file: File, buffer: []u8) std.os.ReadError!usize {
     _ = system;
-    return file.data.host.read(buffer);
+    return file._data.host.read(buffer);
 }
 
+/// See `std.fs.File.stat`
 pub fn statFile(system: System, file: File) File.StatError!File.Stat {
     _ = system;
-    return file.data.host.stat();
+    return file._data.host.stat();
 }
 
-pub fn updateTimesFile(system: System, file: File, atime: i128, mtime: i128) File.UpdateTimesError!void {
+/// See `std.fs.File.updateTimes`
+pub fn updateTimesFile(
+    system: System,
+    file: File,
+    atime: i128,
+    mtime: i128,
+) File.UpdateTimesError!void {
     _ = system;
-    return file.data.host.updateTimes(atime, mtime);
+    return file._data.host.updateTimes(atime, mtime);
 }
 
+/// See `std.fs.File.close`
 pub fn closeFile(system: System, file: File) void {
     _ = system;
-    file.data.host.close();
+    file._data.host.close();
 }
 
 pub const host_system: System = .{
-    .ptr = undefined,
-    .vtable = &System.VTable{
+    ._ptr = undefined,
+    ._vtable = &System.VTable{
         .cwd = cwd,
         .nanoTimestamp = nanoTimestamp,
         .osLinuxGeteuid = osLinuxGeteuid,

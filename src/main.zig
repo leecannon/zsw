@@ -15,8 +15,7 @@ pub const Backend = backend.Backend;
 // ** SYSTEM BACKEND
 
 /// This system calls the host directly
-pub const host_system: System = host_backend.host_system;
-const host_backend = @import("backend/host_backend.zig");
+pub const host_system: System = @import("backend/host_backend.zig").host_system;
 
 // ** INTERFACE
 

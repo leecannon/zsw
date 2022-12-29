@@ -12,6 +12,9 @@ pub fn Time(comptime config: Config) type {
         const Self = @This();
         const log = std.log.scoped(config.logging_scope);
 
+        /// Get a calendar timestamp, in nanoseconds, relative to UTC 1970-01-01.
+        ///
+        /// See `std.time.nanoTimestamp`
         pub fn nanoTimestamp(self: *const Self) i128 {
             const value = @atomicLoad(i128, self.nano_timestamp, .Acquire);
 

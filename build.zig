@@ -61,7 +61,7 @@ const Example = struct {
 const CURRENT_FOLDER = getFileFolder();
 
 fn getFileFolder() []const u8 {
-    return std.fs.path.dirname(@src().file) orelse @panic("root");
+    return std.fs.path.dirname(@src().file) orelse ".";
 }
 
 fn getExamples(allocator: std.mem.Allocator) ![]const Example {

@@ -6,6 +6,7 @@ pub fn LinuxUserGroup(comptime config: Config) type {
     if (!config.linux_user_group) return struct {};
 
     return struct {
+        /// Effective user id
         euid: std.os.uid_t,
 
         const Self = @This();
