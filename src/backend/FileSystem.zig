@@ -223,9 +223,13 @@ pub fn FileSystem(comptime config: Config) type {
             return null;
         }
 
-        /// Searches from the search root for the entry specified by the given path
-        /// The search root must be a directory entry.
-        fn resolveEntry(self: *Self, path: Path) !?*Entry {
+        /// Searches from the path's search root for the entry specified by the given path, returns null
+        /// only if only the last section of the path is not found.
+        ///
+        /// If the `expected_parent` parameter is non-null and the function returns null (as specified in
+        /// the first paragraph) then the parent that was expected to hold the target entry is written to the
+        /// `expected_parent` pointer.
+        fn resolveEntry(self: *Self, path: Path, expected_parent: ?**Entry) !?*Entry {
             var entry: *Entry = path.search_root;
 
             var path_iter = std.mem.tokenize(u8, path.path, std.fs.path.sep_str);
@@ -267,14 +271,15 @@ pub fn FileSystem(comptime config: Config) type {
 
                 if (entry.subdata.dir.entries.get(path_section)) |child| {
                     if (config.log) {
-                        log.debug("found entry: {*}, name: \"{s}\", type: {s}", .{ child, child.name, @tagName(child.subdata) });
+                        log.debug("found entry: {*}, name: \"{s}\", type: {s}", .{
+                            child,
+                            child.name,
+                            @tagName(child.subdata),
+                        });
                     }
 
                     switch (child.subdata) {
-                        .dir => {
-                            entry = child;
-                            continue;
-                        },
+                        .dir => entry = child,
                         .file => {
                             if (path_iter.next() != null) {
                                 if (config.log) {
@@ -283,7 +288,6 @@ pub fn FileSystem(comptime config: Config) type {
                                 return File.OpenError.NotDir;
                             }
                             entry = child;
-                            break;
                         },
                     }
                 } else {
@@ -292,6 +296,10 @@ pub fn FileSystem(comptime config: Config) type {
                             "directory \"{s}\" does not contain an entry \"{s}\"",
                             .{ entry.name, path_section },
                         );
+                    }
+                    if (path_iter.next() != null) return File.OpenError.FileNotFound;
+                    if (expected_parent) |parent| {
+                        parent.* = entry;
                     }
                     return null;
                 }
@@ -345,7 +353,7 @@ pub fn FileSystem(comptime config: Config) type {
                 log.debug("openFileFromDir called, entry: {*}, path: \"{}\", flags: {}", .{ dir_entry, path, flags });
             }
 
-            const entry = (try self.resolveEntry(path)) orelse return File.OpenError.FileNotFound;
+            const entry = (try self.resolveEntry(path, null)) orelse return File.OpenError.FileNotFound;
 
             const view = self.addView(entry) catch return error.SystemResources;
 
@@ -384,7 +392,8 @@ pub fn FileSystem(comptime config: Config) type {
             }
 
             const entry = blk: {
-                if (try self.resolveEntry(path)) |entry| {
+                var expected_parent: *Entry = undefined;
+                if (try self.resolveEntry(path, &expected_parent)) |entry| {
                     // File already exists
                     if (flags.exclusive) {
                         return File.OpenError.PathAlreadyExists;
@@ -398,8 +407,27 @@ pub fn FileSystem(comptime config: Config) type {
                     break :blk entry;
                 }
 
-                @panic("TODO");
                 // File doesn't exist
+
+                const basename = std.fs.path.basename(path.path);
+                const current_time = self.system.nanoTimestamp();
+
+                const file = self.addFileEntry(
+                    basename,
+                    "",
+                    current_time,
+                ) catch return File.OpenError.SystemResources;
+                errdefer {
+                    _ = self.entries.remove(file);
+                    file.destroy();
+                }
+
+                expected_parent.addEntry(file, current_time) catch |err| switch (err) {
+                    error.OutOfMemory => return File.OpenError.SystemResources,
+                    error.DuplicateEntry => unreachable, // the entry was not found so this is impossible
+                };
+
+                break :blk file;
             };
 
             const view = self.addView(entry) catch return error.SystemResources;
@@ -544,7 +572,7 @@ pub fn FileSystem(comptime config: Config) type {
                 name: []const u8,
                 contents: []const u8,
                 current_time: i128,
-            ) !*Entry {
+            ) error{OutOfMemory}!*Entry {
                 const dupe_name = try allocator.dupe(u8, name);
                 errdefer allocator.free(dupe_name);
 
@@ -574,7 +602,7 @@ pub fn FileSystem(comptime config: Config) type {
                 file_system: *FileSystemType,
                 name: []const u8,
                 current_time: i128,
-            ) !*Entry {
+            ) error{OutOfMemory}!*Entry {
                 const dupe_name = try allocator.dupe(u8, name);
                 errdefer allocator.free(dupe_name);
 
@@ -615,7 +643,11 @@ pub fn FileSystem(comptime config: Config) type {
 
             /// Add an entry to the parent entry.
             /// The parent entry must be a directory.
-            fn addEntry(parent: *Entry, entry: *Entry, current_time: i128) !void {
+            fn addEntry(
+                parent: *Entry,
+                entry: *Entry,
+                current_time: i128,
+            ) error{ DuplicateEntry, OutOfMemory }!void {
                 std.debug.assert(parent.subdata == .dir);
 
                 const get_or_put_result = try parent.subdata.dir.entries.getOrPut(parent.allocator, entry.name);
