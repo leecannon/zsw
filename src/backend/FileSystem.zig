@@ -206,6 +206,16 @@ pub fn FileSystem(comptime config: Config) type {
             return null;
         }
 
+        /// The possible parent must be a directory entry.
+        fn toPath(self: *Self, possible_parent: *Entry, str: []const u8) !Path {
+            std.debug.assert(possible_parent.subdata == .dir);
+            if (str.len == 0) return error.BadPathName;
+            return .{
+                .path = str,
+                .search_root = if (std.fs.path.isAbsolute(str)) self.root else possible_parent,
+            };
+        }
+
         /// Return the entry associated with the given view, if there is one.
         fn cwdOrEntry(self: *Self, ptr: *anyopaque) ?*Entry {
             if (isCwd(ptr)) return self.cwd_entry;
@@ -213,43 +223,41 @@ pub fn FileSystem(comptime config: Config) type {
             return null;
         }
 
-        /// Returns the search root associated with the given path
-        fn resolveSearchRootFromPath(self: *Self, possible_parent: *Entry, path: []const u8) *Entry {
-            return if (std.fs.path.isAbsolute(path)) self.root else possible_parent;
-        }
-
         /// Searches from the search root for the entry specified by the given path
-        fn resolveEntry(self: *Self, search_root: *Entry, path: []const u8) !?*Entry {
-            var entry: *Entry = undefined;
-            var search_entry = search_root;
+        /// The search root must be a directory entry.
+        fn resolveEntry(self: *Self, path: Path) !?*Entry {
+            var entry: *Entry = path.search_root;
 
-            var path_iter = std.mem.tokenize(u8, path, std.fs.path.sep_str);
-            path_loop: while (path_iter.next()) |section| {
+            var path_iter = std.mem.tokenize(u8, path.path, std.fs.path.sep_str);
+            while (path_iter.next()) |path_section| {
                 if (config.log) {
-                    log.debug("current search entry: {*}, search entry name: \"{s}\", section: \"{s}\"", .{
-                        search_entry,
-                        search_entry.name,
-                        section,
-                    });
+                    log.debug(
+                        "current entry: {*}, entry name: \"{s}\", path section: \"{s}\"",
+                        .{
+                            entry,
+                            entry.name,
+                            path_section,
+                        },
+                    );
                 }
 
-                if (section.len == 0) continue;
+                if (path_section.len == 0) continue;
 
-                if (std.mem.eql(u8, section, ".")) {
+                if (std.mem.eql(u8, path_section, ".")) {
                     if (config.log) {
-                        log.debug("skipping current directory section", .{});
+                        log.debug("skipping current directory path_section", .{});
                     }
                     continue;
                 }
-                if (std.mem.eql(u8, section, "..")) {
+
+                if (std.mem.eql(u8, path_section, "..")) {
                     if (config.log) {
-                        log.debug("traverse to parent directory section", .{});
+                        log.debug("traverse to parent directory path_section", .{});
                     }
 
-                    if (search_entry.parent) |search_entry_parent| {
-                        entry = search_entry_parent;
-                        search_entry = search_entry_parent;
-                    } else if (search_entry != self.root) {
+                    if (entry.parent) |entry_parent| {
+                        entry = entry_parent;
+                    } else if (entry != self.root) {
                         // TODO: This should instead return an error, but what error? FileNotFound?
                         @panic("attempted to traverse to parent of search entry with no parent");
                     }
@@ -257,34 +265,33 @@ pub fn FileSystem(comptime config: Config) type {
                     continue;
                 }
 
-                var iter = search_entry.subdata.dir.entries.iterator();
-                while (iter.next()) |e| {
-                    const child = e.key_ptr.*;
-                    if (std.mem.eql(u8, child.name, section)) {
-                        if (config.log) {
-                            log.debug("found entry: {*}, name: \"{s}\", type: {s}", .{ child, child.name, @tagName(child.subdata) });
-                        }
-                        switch (child.subdata) {
-                            .dir => {
-                                entry = child;
-                                search_entry = child;
-                                continue :path_loop;
-                            },
-                            .file => {
-                                if (path_iter.next() != null) {
-                                    if (config.log) {
-                                        log.err("file encountered in middle of path", .{});
-                                    }
-                                    return File.OpenError.NotDir;
+                if (entry.subdata.dir.entries.get(path_section)) |child| {
+                    if (config.log) {
+                        log.debug("found entry: {*}, name: \"{s}\", type: {s}", .{ child, child.name, @tagName(child.subdata) });
+                    }
+
+                    switch (child.subdata) {
+                        .dir => {
+                            entry = child;
+                            continue;
+                        },
+                        .file => {
+                            if (path_iter.next() != null) {
+                                if (config.log) {
+                                    log.err("file encountered in middle of path", .{});
                                 }
-                                entry = child;
-                                break :path_loop;
-                            },
-                        }
+                                return File.OpenError.NotDir;
+                            }
+                            entry = child;
+                            break;
+                        },
                     }
                 } else {
                     if (config.log) {
-                        log.err("search directory \"{s}\" does not contain an entry \"{s}\"", .{ search_entry.name, section });
+                        log.err(
+                            "directory \"{s}\" does not contain an entry \"{s}\"",
+                            .{ entry.name, path_section },
+                        );
                     }
                     return null;
                 }
@@ -308,7 +315,7 @@ pub fn FileSystem(comptime config: Config) type {
         pub fn openFileFromDir(
             self: *Self,
             ptr: *anyopaque,
-            sub_path: []const u8,
+            user_path: []const u8,
             flags: File.OpenFlags,
         ) File.OpenError!*anyopaque {
             if (is_windows) {
@@ -332,17 +339,13 @@ pub fn FileSystem(comptime config: Config) type {
 
             const dir_entry = self.cwdOrEntry(ptr) orelse return File.OpenError.NoDevice;
 
-            if (config.log) {
-                log.debug("openFileFromDir called, entry: {*}, sub_path: \"{s}\", flags: {}", .{ dir_entry, sub_path, flags });
-            }
-
-            const search_root = self.resolveSearchRootFromPath(dir_entry, sub_path);
+            const path = try self.toPath(dir_entry, user_path);
 
             if (config.log) {
-                log.debug("initial search entry: {*}, name: \"{s}\"", .{ search_root, search_root.name });
+                log.debug("openFileFromDir called, entry: {*}, path: \"{}\", flags: {}", .{ dir_entry, path, flags });
             }
 
-            const entry = (try self.resolveEntry(search_root, sub_path)) orelse return File.OpenError.FileNotFound;
+            const entry = (try self.resolveEntry(path)) orelse return File.OpenError.FileNotFound;
 
             const view = self.addView(entry) catch return error.SystemResources;
 
@@ -356,7 +359,7 @@ pub fn FileSystem(comptime config: Config) type {
         pub fn createFileFromDir(
             self: *Self,
             ptr: *anyopaque,
-            sub_path: []const u8,
+            user_path: []const u8,
             flags: File.CreateFlags,
         ) File.OpenError!*anyopaque {
             if (is_windows) {
@@ -374,18 +377,14 @@ pub fn FileSystem(comptime config: Config) type {
 
             const dir_entry = self.cwdOrEntry(ptr) orelse return File.OpenError.NoDevice;
 
-            if (config.log) {
-                log.debug("createFileFromDir called, entry: {*}, sub_path: \"{s}\", flags: {}", .{ dir_entry, sub_path, flags });
-            }
-
-            const search_root = self.resolveSearchRootFromPath(dir_entry, sub_path);
+            const path = try self.toPath(dir_entry, user_path);
 
             if (config.log) {
-                log.debug("initial search entry: {*}, name: \"{s}\"", .{ search_root, search_root.name });
+                log.debug("createFileFromDir called, entry: {*}, path: \"{}\", flags: {}", .{ dir_entry, path, flags });
             }
 
             const entry = blk: {
-                if (try self.resolveEntry(search_root, sub_path)) |entry| {
+                if (try self.resolveEntry(path)) |entry| {
                     // File already exists
                     if (flags.exclusive) {
                         return File.OpenError.PathAlreadyExists;
@@ -535,7 +534,7 @@ pub fn FileSystem(comptime config: Config) type {
                 };
 
                 const DirData = struct {
-                    entries: std.AutoArrayHashMapUnmanaged(*Entry, void) = .{},
+                    entries: std.StringArrayHashMapUnmanaged(*Entry) = .{},
                 };
             };
 
@@ -619,9 +618,9 @@ pub fn FileSystem(comptime config: Config) type {
             fn addEntry(parent: *Entry, entry: *Entry, current_time: i128) !void {
                 std.debug.assert(parent.subdata == .dir);
 
-                if (try parent.subdata.dir.entries.fetchPut(parent.allocator, entry, {})) |_| {
-                    return error.DuplicateEntry;
-                }
+                const get_or_put_result = try parent.subdata.dir.entries.getOrPut(parent.allocator, entry.name);
+                if (get_or_put_result.found_existing) return error.DuplicateEntry;
+                get_or_put_result.value_ptr.* = entry;
 
                 if (entry.parent) |old_parent| {
                     old_parent.ctime = current_time;
@@ -641,7 +640,7 @@ pub fn FileSystem(comptime config: Config) type {
             fn removeEntry(self: *Entry, entry: *Entry, current_time: i128) bool {
                 std.debug.assert(self.subdata == .dir);
 
-                if (self.subdata.dir.entries.fetchSwapRemove(entry)) |_| {
+                if (self.subdata.dir.entries.swapRemove(entry)) {
                     self.ctime = current_time;
 
                     if (entry.decrementReference()) {
@@ -664,6 +663,11 @@ pub fn FileSystem(comptime config: Config) type {
                 }
                 self.allocator.destroy(self);
             }
+        };
+
+        const Path = struct {
+            path: []const u8,
+            search_root: *Entry,
         };
 
         const View = struct {
