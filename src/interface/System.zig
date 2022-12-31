@@ -31,10 +31,28 @@ pub inline fn geteuid(self: System) std.os.uid_t {
     return self._vtable.osLinuxGeteuid(self);
 }
 
+/// See `std.io.getStdIn`
+pub inline fn getStdIn(self: System) File {
+    return self._vtable.getStdIn(self);
+}
+
+/// See `std.io.getStdErr`
+pub inline fn getStdErr(self: System) File {
+    return self._vtable.getStdErr(self);
+}
+
+/// See `std.io.getStdOut`
+pub inline fn getStdOut(self: System) File {
+    return self._vtable.getStdOut(self);
+}
+
 pub const VTable = struct {
     // Exposed by `System`
     cwd: *const fn (ptr: System) Dir,
     nanoTimestamp: *const fn (self: System) i128,
+    getStdIn: *const fn (self: System) File,
+    getStdErr: *const fn (self: System) File,
+    getStdOut: *const fn (self: System) File,
 
     osLinuxGeteuid: *const fn (ptr: System) std.os.uid_t,
 

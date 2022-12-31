@@ -24,6 +24,30 @@ pub fn osLinuxGeteuid(system: System) std.os.uid_t {
     return std.os.linux.geteuid();
 }
 
+/// See `std.io.getStdIn`
+pub fn getStdIn(system: System) File {
+    return .{
+        ._system = system,
+        ._data = .{ .host = std.io.getStdIn() },
+    };
+}
+
+/// See `std.io.getStdErr`
+pub fn getStdErr(system: System) File {
+    return .{
+        ._system = system,
+        ._data = .{ .host = std.io.getStdErr() },
+    };
+}
+
+/// See `std.io.getStdOut`
+pub fn getStdOut(system: System) File {
+    return .{
+        ._system = system,
+        ._data = .{ .host = std.io.getStdOut() },
+    };
+}
+
 /// See `std.fs.Dir.openFile`
 pub fn openFileFromDir(
     system: System,
@@ -105,6 +129,9 @@ pub const host_system: System = .{
         .cwd = cwd,
         .nanoTimestamp = nanoTimestamp,
         .osLinuxGeteuid = osLinuxGeteuid,
+        .getStdIn = getStdIn,
+        .getStdErr = getStdErr,
+        .getStdOut = getStdOut,
         .openFileFromDir = openFileFromDir,
         .createFileFromDir = createFileFromDir,
         .statDir = statDir,

@@ -141,6 +141,21 @@ pub fn Backend(comptime config: Config) type {
             return getSelf(interface).linux_user_group.osLinuxGeteuid();
         }
 
+        fn getStdIn(interface: System) File {
+            _ = interface;
+            @panic("stdio is not implemented in the custom backend");
+        }
+
+        fn getStdErr(interface: System) File {
+            _ = interface;
+            @panic("stdio is not implemented in the custom backend");
+        }
+
+        fn getStdOut(interface: System) File {
+            _ = interface;
+            @panic("stdio is not implemented in the custom backend");
+        }
+
         fn openFileFromDir(
             interface: System,
             dir: Dir,
@@ -271,6 +286,9 @@ pub fn Backend(comptime config: Config) type {
             .cwd = cwd,
             .nanoTimestamp = nanoTimestamp,
             .osLinuxGeteuid = osLinuxGeteuid,
+            .getStdIn = getStdIn,
+            .getStdErr = getStdErr,
+            .getStdOut = getStdOut,
             .openFileFromDir = openFileFromDir,
             .createFileFromDir = createFileFromDir,
             .statDir = statDir,
