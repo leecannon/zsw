@@ -1,28 +1,30 @@
 const std = @import("std");
 
-// ** CONFIGURATION
+const Config = @import("../config/Config.zig");
 
-pub const Config = @import("config/Config.zig");
-pub const FileSystemDescription = @import("config/FileSystemDescription.zig");
-pub const LinuxUserGroupDescription = @import("config/LinuxUserGroupDescription.zig");
-pub const TimeDescription = @import("config/TimeDescription.zig");
+pub fn LinuxUserGroupBackend(comptime config: Config) type {
+    if (!config.linux_user_group) return struct {};
 
-// ** CUSTOM BACKEND
+    return struct {
+        /// Effective user id
+        euid: std.os.uid_t,
 
-const backend = @import("backend/Backend.zig");
-pub const Backend = backend.Backend;
+        const Self = @This();
+        const log = std.log.scoped(config.logging_scope);
 
-// ** SYSTEM BACKEND
+        pub fn osLinuxGeteuid(self: *Self) std.os.uid_t {
+            if (config.log) {
+                log.debug("osLinuxGeteuid called, returning {}", .{self.euid});
+            }
 
-/// This system calls the host directly
-pub const host_system: System = @import("backend/host_backend.zig").host_system;
+            return self.euid;
+        }
+    };
+}
 
-// ** INTERFACE
-
-pub const System = @import("interface/System.zig");
-pub const Dir = @import("interface/Dir.zig");
-pub const File = @import("interface/File.zig");
-pub const Uname = @import("interface/Uname.zig").Uname;
+comptime {
+    @import("../internal.zig").referenceAllIterations(LinuxUserGroupBackend);
+}
 
 comptime {
     refAllDeclsRecursive(@This());

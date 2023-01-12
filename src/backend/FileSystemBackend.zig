@@ -11,7 +11,7 @@ const File = @import("../interface/File.zig");
 const Config = @import("../config/Config.zig");
 const FileSystemDescription = @import("../config/FileSystemDescription.zig");
 
-pub fn FileSystem(comptime config: Config) type {
+pub fn FileSystemBackend(comptime config: Config) type {
     if (!config.file_system) return struct {};
 
     return struct {
@@ -716,7 +716,7 @@ pub fn FileSystem(comptime config: Config) type {
 }
 
 comptime {
-    @import("../internal.zig").referenceAllIterations(FileSystem);
+    @import("../internal.zig").referenceAllIterations(FileSystemBackend);
 }
 
 comptime {

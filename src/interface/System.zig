@@ -1,8 +1,10 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const Dir = @import("Dir.zig");
 const File = @import("File.zig");
-const builtin = @import("builtin");
+const Uname = @import("Uname.zig").Uname;
+
 const System = @This();
 
 _ptr: *anyopaque,
@@ -13,6 +15,13 @@ _vtable: *const VTable,
 /// See `std.fs.cwd`
 pub inline fn cwd(self: System) Dir {
     return self._vtable.cwd(self);
+}
+
+/// Returns various system information
+///
+/// See `std.os.uname`
+pub inline fn uname(self: System) Uname {
+    return self._vtable.uname(self);
 }
 
 /// Get a calendar timestamp, in nanoseconds, relative to UTC 1970-01-01.
@@ -53,6 +62,8 @@ pub const VTable = struct {
     getStdIn: *const fn (self: System) File,
     getStdErr: *const fn (self: System) File,
     getStdOut: *const fn (self: System) File,
+
+    uname: *const fn (self: System) Uname,
 
     osLinuxGeteuid: *const fn (ptr: System) std.os.uid_t,
 

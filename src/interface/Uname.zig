@@ -1,28 +1,22 @@
 const std = @import("std");
 
-// ** CONFIGURATION
+const System = @import("System.zig");
 
-pub const Config = @import("config/Config.zig");
-pub const FileSystemDescription = @import("config/FileSystemDescription.zig");
-pub const LinuxUserGroupDescription = @import("config/LinuxUserGroupDescription.zig");
-pub const TimeDescription = @import("config/TimeDescription.zig");
+pub const Uname = union(enum) {
+    host: std.os.utsname,
+    custom: CustomUname,
 
-// ** CUSTOM BACKEND
-
-const backend = @import("backend/Backend.zig");
-pub const Backend = backend.Backend;
-
-// ** SYSTEM BACKEND
-
-/// This system calls the host directly
-pub const host_system: System = @import("backend/host_backend.zig").host_system;
-
-// ** INTERFACE
-
-pub const System = @import("interface/System.zig");
-pub const Dir = @import("interface/Dir.zig");
-pub const File = @import("interface/File.zig");
-pub const Uname = @import("interface/Uname.zig").Uname;
+    pub const CustomUname = struct {
+        operating_system_name: []const u8,
+        host_name: []const u8,
+        /// The operating system release
+        release: []const u8,
+        /// The operating system version
+        version: []const u8,
+        hardware_identifier: []const u8,
+        domain_name: []const u8,
+    };
+};
 
 comptime {
     refAllDeclsRecursive(@This());

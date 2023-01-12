@@ -1,28 +1,35 @@
 const std = @import("std");
 
-// ** CONFIGURATION
+const Config = @import("../config/Config.zig");
 
-pub const Config = @import("config/Config.zig");
-pub const FileSystemDescription = @import("config/FileSystemDescription.zig");
-pub const LinuxUserGroupDescription = @import("config/LinuxUserGroupDescription.zig");
-pub const TimeDescription = @import("config/TimeDescription.zig");
+pub fn TimeBackend(comptime config: Config) type {
+    if (!config.time) return struct {};
 
-// ** CUSTOM BACKEND
+    return struct {
+        /// A pointer to the source to be used as the current time in nanoseconds.
+        nano_timestamp: *const i128,
 
-const backend = @import("backend/Backend.zig");
-pub const Backend = backend.Backend;
+        const Self = @This();
+        const log = std.log.scoped(config.logging_scope);
 
-// ** SYSTEM BACKEND
+        /// Get a calendar timestamp, in nanoseconds, relative to UTC 1970-01-01.
+        ///
+        /// See `std.time.nanoTimestamp`
+        pub fn nanoTimestamp(self: *const Self) i128 {
+            const value = @atomicLoad(i128, self.nano_timestamp, .Acquire);
 
-/// This system calls the host directly
-pub const host_system: System = @import("backend/host_backend.zig").host_system;
+            if (config.log) {
+                log.debug("nanoTimestamp called, returning {}", .{value});
+            }
 
-// ** INTERFACE
+            return value;
+        }
+    };
+}
 
-pub const System = @import("interface/System.zig");
-pub const Dir = @import("interface/Dir.zig");
-pub const File = @import("interface/File.zig");
-pub const Uname = @import("interface/Uname.zig").Uname;
+comptime {
+    @import("../internal.zig").referenceAllIterations(TimeBackend);
+}
 
 comptime {
     refAllDeclsRecursive(@This());

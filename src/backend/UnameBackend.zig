@@ -1,34 +1,54 @@
 const std = @import("std");
 
 const Config = @import("../config/Config.zig");
+const Uname = @import("../interface/Uname.zig").Uname;
 
-pub fn Time(comptime config: Config) type {
-    if (!config.time) return struct {};
+pub fn UnameBackend(comptime config: Config) type {
+    if (!config.uname) return struct {};
 
     return struct {
-        /// A pointer to the source to be used as the current time in nanoseconds.
-        nano_timestamp: *const i128,
+        allocator: std.mem.Allocator,
+
+        operating_system_name: []const u8,
+
+        host_name: []const u8,
+
+        /// The operating system release
+        release: []const u8,
+
+        /// The operating system version
+        version: []const u8,
+
+        hardware_identifier: []const u8,
+
+        domain_name: []const u8,
 
         const Self = @This();
         const log = std.log.scoped(config.logging_scope);
 
-        /// Get a calendar timestamp, in nanoseconds, relative to UTC 1970-01-01.
-        ///
-        /// See `std.time.nanoTimestamp`
-        pub fn nanoTimestamp(self: *const Self) i128 {
-            const value = @atomicLoad(i128, self.nano_timestamp, .Acquire);
+        pub fn uname(self: *Self) Uname {
+            // TODO: This is a memory leak
+
+            const result: Uname = .{
+                .operating_system_name = self.operating_system_name,
+                .host_name = self.host_name,
+                .release = self.release,
+                .version = self.version,
+                .hardware_identifier = self.hardware_identifier,
+                .domain_name = self.domain_name,
+            };
 
             if (config.log) {
-                log.debug("nanoTimestamp called, returning {}", .{value});
+                log.debug("uname called, returning {}", .{result});
             }
 
-            return value;
+            return result;
         }
     };
 }
 
 comptime {
-    @import("../internal.zig").referenceAllIterations(Time);
+    @import("../internal.zig").referenceAllIterations(UnameBackend);
 }
 
 comptime {

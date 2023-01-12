@@ -24,6 +24,12 @@ file_system: bool = false,
 /// a `linux_user_group` field of type `LinuxUserGroupDescription`
 linux_user_group: bool = false,
 
+/// Enable uname capability.
+///
+/// If this capability is enabled the `arguments` parameter to `init` requires
+/// a `uname` field of type `UnameDescription`
+uname: bool = false,
+
 /// Enable time capability
 ///
 /// If this capability is enabled the `arguments` parameter to `init` requires

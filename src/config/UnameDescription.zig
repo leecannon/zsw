@@ -1,30 +1,25 @@
 const std = @import("std");
 
-const Config = @import("../config/Config.zig");
+/// The operating system name.
+operating_system_name: []const u8,
 
-pub fn LinuxUserGroup(comptime config: Config) type {
-    if (!config.linux_user_group) return struct {};
+/// The initial host name that the backend should use
+/// This is sometimes called `nodename`
+host_name: []const u8,
 
-    return struct {
-        /// Effective user id
-        euid: std.os.uid_t,
+/// The operating system release
+release: []const u8,
 
-        const Self = @This();
-        const log = std.log.scoped(config.logging_scope);
+/// The operating system version
+version: []const u8,
 
-        pub fn osLinuxGeteuid(self: *Self) std.os.uid_t {
-            if (config.log) {
-                log.debug("osLinuxGeteuid called, returning {}", .{self.euid});
-            }
+/// Hardware identifier
+/// This is sometimes called machine
+hardware_identifier: []const u8,
 
-            return self.euid;
-        }
-    };
-}
-
-comptime {
-    @import("../internal.zig").referenceAllIterations(LinuxUserGroup);
-}
+/// The initial domain name that the backend should use
+/// This is sometimes called `domainname`
+domain_name: []const u8,
 
 comptime {
     refAllDeclsRecursive(@This());

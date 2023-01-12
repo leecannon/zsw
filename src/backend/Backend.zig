@@ -3,24 +3,28 @@ const std = @import("std");
 const System = @import("../interface/System.zig");
 const Dir = @import("../interface/Dir.zig");
 const File = @import("../interface/File.zig");
+const Uname = @import("../interface/Uname.zig").Uname;
 
 const Config = @import("../config/Config.zig");
 const FileSystemDescription = @import("../config/FileSystemDescription.zig");
 const LinuxUserGroupDescription = @import("../config/LinuxUserGroupDescription.zig");
 const TimeDescription = @import("../config/TimeDescription.zig");
+const UnameDescription = @import("../config/UnameDescription.zig");
 
-const FileSystem = @import("FileSystem.zig").FileSystem;
-const LinuxUserGroup = @import("LinuxUserGroup.zig").LinuxUserGroup;
-const Time = @import("Time.zig").Time;
+const FileSystemBackend = @import("FileSystemBackend.zig").FileSystemBackend;
+const LinuxUserGroupBackend = @import("LinuxUserGroupBackend.zig").LinuxUserGroupBackend;
+const TimeBackend = @import("TimeBackend.zig").TimeBackend;
+const UnameBackend = @import("UnameBackend.zig").UnameBackend;
 
 const host_backend = @import("host_backend.zig");
 
 pub fn Backend(comptime config: Config) type {
     return struct {
         allocator: std.mem.Allocator,
-        file_system: FileSystem(config),
-        linux_user_group: LinuxUserGroup(config),
-        time: Time(config),
+        file_system: FileSystemBackend(config),
+        linux_user_group: LinuxUserGroupBackend(config),
+        time: TimeBackend(config),
+        uname_backend: UnameBackend(config),
 
         const log = std.log.scoped(config.logging_scope);
 
@@ -67,7 +71,7 @@ pub fn Backend(comptime config: Config) type {
                     }
                 }
 
-                self.file_system = try FileSystem(config).create(allocator, self.system(), description.file_system);
+                self.file_system = try FileSystemBackend(config).create(allocator, self.system(), description.file_system);
             }
 
             if (config.linux_user_group) {
@@ -85,6 +89,42 @@ pub fn Backend(comptime config: Config) type {
 
                 self.linux_user_group = .{
                     .euid = linux_user_group_desc.initial_euid,
+                };
+            }
+
+            if (config.uname) {
+                comptime {
+                    const err = "uanme capability requested without `uname` field in `description` with type `UnameDescription`";
+                    if (!@hasField(DescriptionType, "uname")) {
+                        @compileError(err);
+                    }
+                    if (@TypeOf(description.uname) != UnameDescription) {
+                        @compileError(err);
+                    }
+                }
+
+                const uname_desc: *const UnameDescription = &description.uname;
+
+                const operating_system_name = try allocator.dupe(u8, uname_desc.operating_system_name);
+                errdefer allocator.free(operating_system_name);
+                const host_name = try allocator.dupe(u8, uname_desc.host_name);
+                errdefer allocator.free(host_name);
+                const release = try allocator.dupe(u8, uname_desc.release);
+                errdefer allocator.free(release);
+                const version = try allocator.dupe(u8, uname_desc.version);
+                errdefer allocator.free(version);
+                const hardware_identifier = try allocator.dupe(u8, uname_desc.hardware_identifier);
+                errdefer allocator.free(hardware_identifier);
+                const domain_name = try allocator.dupe(u8, uname_desc.domain_name);
+
+                self.uname_backend = .{
+                    .allocator = allocator,
+                    .operating_system_name = operating_system_name,
+                    .host_name = host_name,
+                    .release = release,
+                    .version = version,
+                    .hardware_identifier = hardware_identifier,
+                    .domain_name = domain_name,
                 };
             }
 
@@ -128,6 +168,17 @@ pub fn Backend(comptime config: Config) type {
             }
 
             return getSelf(interface).time.nanoTimestamp();
+        }
+
+        fn uname(interface: System) Uname {
+            if (!config.uname) {
+                if (config.fallback_to_host) {
+                    return host_backend.uname(interface);
+                }
+                @panic("uname requires uname capability");
+            }
+
+            return getSelf(interface).uname_backend.uname();
         }
 
         fn osLinuxGeteuid(interface: System) std.os.uid_t {
@@ -286,6 +337,7 @@ pub fn Backend(comptime config: Config) type {
             .cwd = cwd,
             .nanoTimestamp = nanoTimestamp,
             .osLinuxGeteuid = osLinuxGeteuid,
+            .uname = uname,
             .getStdIn = getStdIn,
             .getStdErr = getStdErr,
             .getStdOut = getStdOut,

@@ -3,6 +3,7 @@ const std = @import("std");
 const System = @import("../interface/System.zig");
 const Dir = @import("../interface/Dir.zig");
 const File = @import("../interface/File.zig");
+const Uname = @import("../interface/Uname.zig").Uname;
 
 /// See `std.fs.cwd`
 pub fn cwd(system: System) Dir {
@@ -22,6 +23,12 @@ pub fn nanoTimestamp(system: System) i128 {
 pub fn osLinuxGeteuid(system: System) std.os.uid_t {
     _ = system;
     return std.os.linux.geteuid();
+}
+
+/// See `std.os.uname`
+pub fn uname(system: System) Uname {
+    _ = system;
+    return .{ .host = std.os.uname() };
 }
 
 /// See `std.io.getStdIn`
@@ -129,6 +136,7 @@ pub const host_system: System = .{
         .cwd = cwd,
         .nanoTimestamp = nanoTimestamp,
         .osLinuxGeteuid = osLinuxGeteuid,
+        .uname = uname,
         .getStdIn = getStdIn,
         .getStdErr = getStdErr,
         .getStdOut = getStdOut,
