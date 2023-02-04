@@ -5,21 +5,24 @@ const pkg = std.build.Pkg{
     .source = .{ .path = "src/main.zig" },
 };
 
-pub fn build(b: *std.build.Builder) !void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
-    const mode = b.standardReleaseOptions();
+    const optimize = b.standardOptimizeOption(.{});
 
     const examples = try getExamples(b.allocator);
 
-    addTests(b, mode, examples);
-    try createExamples(b, mode, target, examples);
+    addTests(b, optimize, examples);
+    try createExamples(b, optimize, target, examples);
 }
 
-fn createExamples(b: *std.build.Builder, mode: std.builtin.Mode, target: std.zig.CrossTarget, examples: []const Example) !void {
+fn createExamples(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std.zig.CrossTarget, examples: []const Example) !void {
     for (examples) |example| {
-        const example_exe = b.addExecutable(example.name, example.path);
-        example_exe.setBuildMode(mode);
-        example_exe.setTarget(target);
+        const example_exe = b.addExecutable(.{
+            .name = example.name,
+            .root_source_file = .{ .path = example.path },
+            .target = target,
+            .optimize = optimize,
+        });
         example_exe.addPackage(pkg);
 
         const run = example_exe.run();
@@ -31,16 +34,20 @@ fn createExamples(b: *std.build.Builder, mode: std.builtin.Mode, target: std.zig
     }
 }
 
-fn addTests(b: *std.build.Builder, mode: std.builtin.Mode, examples: []const Example) void {
+fn addTests(b: *std.Build, optimize: std.builtin.OptimizeMode, examples: []const Example) void {
     const test_step = b.step("test", "Run all tests");
 
-    const lib_tests = b.addTest("src/main.zig");
-    lib_tests.setBuildMode(mode);
+    const lib_tests = b.addTest(.{
+        .root_source_file = .{ .path = "src/main.zig" },
+        .optimize = optimize,
+    });
     test_step.dependOn(&lib_tests.step);
 
     for (examples) |example| {
-        const example_test = b.addTest(example.path);
-        example_test.setBuildMode(mode);
+        const example_test = b.addTest(.{
+            .root_source_file = .{ .path = example.path },
+            .optimize = optimize,
+        });
         example_test.addPackage(pkg);
         test_step.dependOn(&example_test.step);
     }
@@ -71,10 +78,16 @@ fn getExamples(allocator: std.mem.Allocator) ![]const Example {
         examples.deinit();
     }
 
+    var build_dir = try std.fs.cwd().openDir(getFileFolder(), .{});
+    defer build_dir.close();
+
+    var example_dir = try build_dir.openDir("examples", .{});
+    defer example_dir.close();
+
     const example_sections: []const []const u8 = &.{"file_system"};
 
     inline for (example_sections) |example_section| {
-        var examples_dir = try std.fs.cwd().openIterableDir("examples/" ++ example_section, .{});
+        var examples_dir = try example_dir.openIterableDir(example_section, .{});
         defer examples_dir.close();
 
         var iter = examples_dir.iterate();
