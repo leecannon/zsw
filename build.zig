@@ -1,10 +1,5 @@
 const std = @import("std");
 
-const pkg = std.build.Pkg{
-    .name = "zsw",
-    .source = .{ .path = "src/main.zig" },
-};
-
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -23,7 +18,7 @@ fn createExamples(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std
             .target = target,
             .optimize = optimize,
         });
-        example_exe.addPackage(pkg);
+        example_exe.addAnonymousModule("zsw", .{ .source_file = .{ .path = "src/main.zig" } });
 
         const run = example_exe.run();
 
@@ -48,7 +43,7 @@ fn addTests(b: *std.Build, optimize: std.builtin.OptimizeMode, examples: []const
             .root_source_file = .{ .path = example.path },
             .optimize = optimize,
         });
-        example_test.addPackage(pkg);
+        example_test.addAnonymousModule("zsw", .{ .source_file = .{ .path = "src/main.zig" } });
         test_step.dependOn(&example_test.step);
     }
 
