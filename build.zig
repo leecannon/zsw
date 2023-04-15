@@ -20,7 +20,7 @@ fn createExamples(b: *std.Build, optimize: std.builtin.OptimizeMode, target: std
         });
         example_exe.addAnonymousModule("zsw", .{ .source_file = .{ .path = "src/main.zig" } });
 
-        const run = example_exe.run();
+        const run = b.addRunArtifact(example_exe);
 
         const desc = try std.fmt.allocPrint(b.allocator, "run example '{s}' from '{s}' section", .{ example.name, example.section });
 
@@ -36,7 +36,8 @@ fn addTests(b: *std.Build, optimize: std.builtin.OptimizeMode, examples: []const
         .root_source_file = .{ .path = "src/main.zig" },
         .optimize = optimize,
     });
-    test_step.dependOn(&lib_tests.step);
+    const run_lib_tests = b.addRunArtifact(lib_tests);
+    test_step.dependOn(&run_lib_tests.step);
 
     for (examples) |example| {
         const example_test = b.addTest(.{
@@ -44,7 +45,8 @@ fn addTests(b: *std.Build, optimize: std.builtin.OptimizeMode, examples: []const
             .optimize = optimize,
         });
         example_test.addAnonymousModule("zsw", .{ .source_file = .{ .path = "src/main.zig" } });
-        test_step.dependOn(&example_test.step);
+        const run_example_test = b.addRunArtifact(example_test);
+        test_step.dependOn(&run_example_test.step);
     }
 
     b.default_step = test_step;
