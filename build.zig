@@ -89,7 +89,7 @@ fn getExamples(allocator: std.mem.Allocator) ![]const Example {
 
         var iter = examples_dir.iterate();
         while (try iter.next()) |entry| {
-            if (entry.kind != .File) continue;
+            if (entry.kind != .file) continue;
 
             const path = try std.fmt.allocPrint(allocator, CURRENT_FOLDER ++ "/examples/" ++ example_section ++ "/{s}", .{entry.name});
             errdefer allocator.free(path);
