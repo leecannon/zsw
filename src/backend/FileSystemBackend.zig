@@ -35,7 +35,7 @@ pub fn FileSystemBackend(comptime config: Config) type {
             break :blk permissions;
         };
 
-        const CWD = @intToPtr(*anyopaque, std.mem.alignBackward(std.math.maxInt(usize), @alignOf(View)));
+        const CWD = @ptrFromInt(*anyopaque, std.mem.alignBackward(std.math.maxInt(usize), @alignOf(View)));
 
         const Self = @This();
         const FileSystemType = Self;
@@ -482,7 +482,7 @@ pub fn FileSystemBackend(comptime config: Config) type {
             const entry = view.entry;
 
             var stat_value: File.Stat = .{
-                .inode = @ptrToInt(view.entry),
+                .inode = @intFromPtr(view.entry),
                 .atime = entry.atime,
                 .mtime = entry.mtime,
                 .ctime = entry.ctime,
