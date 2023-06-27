@@ -352,7 +352,7 @@ pub fn Backend(comptime config: Config) type {
         };
 
         inline fn getSelf(interface: System) *Self {
-            return @ptrCast(*Self, @alignCast(@alignOf(Self), interface._ptr));
+            return @as(*Self, @ptrCast(@alignCast(interface._ptr)));
         }
 
         comptime {

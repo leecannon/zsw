@@ -35,7 +35,7 @@ pub fn FileSystemBackend(comptime config: Config) type {
             break :blk permissions;
         };
 
-        const CWD = @ptrFromInt(*anyopaque, std.mem.alignBackward(std.math.maxInt(usize), @alignOf(View)));
+        const CWD: *anyopaque = @ptrFromInt(std.mem.alignBackward(std.math.maxInt(usize), @alignOf(View)));
 
         const Self = @This();
         const FileSystemType = Self;
@@ -55,7 +55,7 @@ pub fn FileSystemBackend(comptime config: Config) type {
             };
             errdefer self.destroy();
 
-            try self.entries.ensureTotalCapacity(allocator, @intCast(u32, fsd.entries.items.len));
+            try self.entries.ensureTotalCapacity(allocator, @intCast(fsd.entries.items.len));
 
             var opt_root: ?*Entry = null;
             var opt_cwd_entry: ?*Entry = null;
@@ -199,7 +199,7 @@ pub fn FileSystemBackend(comptime config: Config) type {
 
         /// Cast the given `ptr` to a view if it is one.
         inline fn toView(self: *Self, ptr: *anyopaque) ?*View {
-            const view = @ptrCast(*View, @alignCast(@alignOf(View), ptr));
+            const view = @as(*View, @ptrCast(@alignCast(ptr)));
             if (self.views.contains(view)) {
                 return view;
             }
